@@ -21,23 +21,41 @@ public abstract class Controller {
     protected final HttpResponse response;
     protected final HttpRequest request;
     protected final HttpContext context;
-    
+    RouteService service;
     public Controller(HttpContext context){
         if(context==null){
             throw new NullPointerException();
         }
         this.context=context;
-        this.request=context.request();
-        this.response=context.response();
+        this.request=context.getRequest();
+        this.response=context.getResponse();
     }
     
     @Action(value="",method=9)
     void view(String path){
+        
+        service.set("", path);
+        service.setResult(null);
+        
     }
     //actionMapping("/index/{name?}/{value?}",POST)
     void view(String action,String controller,String app){
         //host/app/controller/action/args?query
         //return newindex("index")
+        
+    }
+    
+    class TestView implements View{
+        
+        @Override
+        public void execute(RouteService service) {
+            
+            service.getContext().getResponse().write("<html>", "");
+            if(service.get("")==null){
+                
+            }
+            service.getContext().getResponse().write("</html>", "");
+        }
         
     }
     

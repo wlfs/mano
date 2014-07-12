@@ -52,7 +52,7 @@ public class NameValueCollection<T> implements Map<String, T> {
         return new ItemEntry(key,value);
     }
     
-    protected HashMap<String, T> map;
+    protected Map<String, T> map;
     protected final Map<String, Entry<String, T>> lookup;
 
     public NameValueCollection() {
@@ -66,7 +66,7 @@ public class NameValueCollection<T> implements Map<String, T> {
 
     private Map<String, T> getMap() {
         if (map == null) {
-            map = new HashMap<>();
+            map = new LinkedHashMap<>();
             lookup.values().stream().forEach((entry) -> {
                 map.put(entry.getKey(), entry.getValue());
             });

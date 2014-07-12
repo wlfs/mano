@@ -26,7 +26,7 @@ public class WebApplicationStartupInfo{
         public String path;
         public ArrayList<String> documents;
         public NameValueCollection<String> settings;
-        
+        public String serverPath;
         private WebApplication app;
         public synchronized WebApplication getInstance(){
             if(app!=null){

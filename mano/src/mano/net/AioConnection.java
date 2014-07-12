@@ -7,8 +7,6 @@
  */
 package mano.net;
 
-import mano.util.CachedObjectFactory;
-import mano.util.Pool;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -25,6 +23,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import mano.util.CachedObjectFactory;
+import mano.util.Pool;
+import mano.util.ThreadPool;
 
 /**
  *
@@ -44,30 +45,23 @@ public class AioConnection extends Connection {
     int _backlog = 100;
     boolean _isBind;
 
-    private AioConnection(CachedObjectFactory<Task> handlerFactory, int mode) {
+    private AioConnection(int mode) {
         _mode = mode;
-        //_handlerFactory = handlerFactory;
-
     }
 
-    public AioConnection(CachedObjectFactory<Task> handlerFactory, InetSocketAddress address, ExecutorService executor) throws IOException {
-        this(handlerFactory, MODE_SERVER);
+    public AioConnection(InetSocketAddress address, ExecutorService executor) throws IOException {
+        this(MODE_SERVER);
         _address = address;
         _server = AsynchronousServerSocketChannel.open(AsynchronousChannelGroup.withThreadPool(executor));
 
         acceptFactory = new Pool<>(new AcceptedHandler());
         readFactory = new Pool<>(new ReceivedHandler());
         writeFactory = new Pool<>(new SentHandler());
-        //setOption(StandardSocketOptions.SO_RCVBUF,16*1024);
     }
 
     public AioConnection(CachedObjectFactory<Task> handlerFactory, AsynchronousSocketChannel channel) {
-        this(handlerFactory, MODE_CONNECTOR);
+        this(MODE_CONNECTOR);
         _client = channel;
-
-        /*setOption(StandardSocketOptions.TCP_NODELAY,true);
-         setOption(StandardSocketOptions.SO_REUSEADDR,true);
-         setOption(StandardSocketOptions.SO_KEEPALIVE,false);*/
     }
 
     @Override
@@ -101,15 +95,15 @@ public class AioConnection extends Connection {
     }
 
     @Override
-    public void close(Task task) {
-        if (readHandle.acquire(this) && writeHandle.acquire(this)) {
-            try {
-                this._client.close();
-            } catch (IOException ignored) {
-            }
-            if (task != null) {
-                task.fire(this, Task.EVENT_CLOSED, this, null, null, 0);
-            }
+    protected void closeImpl(Task task) {
+        try {
+            this._client.close();
+        } catch (IOException ignored) {
+            //igored
+        }
+        
+        if (task != null) {
+            task.fire(this, Task.EVENT_CLOSED, this, null, null, 0);
         }
     }
 
@@ -132,7 +126,7 @@ public class AioConnection extends Connection {
             }
 
             AioConnection me = this;
-            new Thread(new Runnable() { //TODO:线程池
+            ThreadPool.execute(new Runnable() {
 
                 @Override
                 public void run() {
@@ -140,15 +134,13 @@ public class AioConnection extends Connection {
                     try {
                         result = msg.channel().transferFrom(_proxy, msg.position(), msg.length());
                     } catch (IOException ex) {
-                        //readPending.set(false);
                         msg.fire(this, Task.EVENT_ERROR, me, null, ex, result);
                         return;
                     }
-                    //readPending.set(false);
                     msg.fire(this, Task.EVENT_READ, me, null, null, result);
                 }
 
-            }).start();
+            });
         } else {
             ReceivedHandler handler = new ReceivedHandler();
             handler.bind(this, null);
@@ -164,7 +156,7 @@ public class AioConnection extends Connection {
                 _proxy = new TransferProxy(this);
             }
             AioConnection me = this;
-            new Thread(new Runnable() { //TODO:线程池
+            ThreadPool.execute(new Runnable() { //TODO:线程池
 
                 @Override
                 public void run() {
@@ -172,18 +164,13 @@ public class AioConnection extends Connection {
                     try {
                         result = msg.channel().transferTo(msg.position(), msg.length(), _proxy);
                     } catch (IOException ex) {
-                        //writeLock.unlockWrite(msg.stamp);
-                        //writePending.set(false);
-
                         msg.fire(this, Task.EVENT_ERROR, me, null, ex, result);
                         return;
                     }
-                    //writeLock.unlockWrite(msg.stamp);
-                    //writePending.set(false);
                     msg.fire(this, Task.EVENT_WRITTEN, me, null, null, result);
                 }
 
-            }).start();
+            });
         } else {
             SentHandler handler = new SentHandler();
             handler.bind(this, null);

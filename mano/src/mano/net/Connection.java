@@ -7,8 +7,6 @@
  */
 package mano.net;
 
-import mano.util.ObjectFactory;
-import mano.util.SafeHandle;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.SocketOption;
@@ -16,8 +14,13 @@ import java.nio.channels.CompletionHandler;
 import java.nio.channels.NetworkChannel;
 import java.nio.channels.ReadPendingException;
 import java.nio.channels.WritePendingException;
+import java.time.LocalDateTime;
+import java.util.Calendar;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import mano.InvalidOperationException;
+import mano.util.ObjectFactory;
+import mano.util.SafeHandle;
 
 /**
  * 表示一个网络(socket)连接。
@@ -25,8 +28,36 @@ import java.util.concurrent.LinkedBlockingQueue;
  * @author jun <jun@diosay.com>
  */
 public abstract class Connection {
+    private volatile long time;
+    
+    protected synchronized void update(){
+        time=Calendar.getInstance().getTime().getTime();
+    }
+    
+    public boolean vod(){
+        if(Calendar.getInstance().getTime().getTime()-time>300000){
+            return false;
+        }
+        return true;
+    }
+    
+    protected abstract void closeImpl(Task task);
 
-    public abstract void close(Task task);
+    public synchronized void close(boolean forcibly, Task task) throws InvalidOperationException {
+        if (forcibly) {
+            closeImpl(task!=null?task.close():null);
+        } else {
+            if(task==null){
+                throw new IllegalArgumentException("task");
+            }
+            this._writeQueued.offer(task.close());
+            this.flush();
+        }
+    }
+
+    public void close(Task task) throws InvalidOperationException {
+        close(false, task);
+    }
 
     public abstract SocketAddress getLocalAddress() throws IOException;
 
@@ -110,35 +141,50 @@ public abstract class Connection {
         _writeQueued.offer(task);
         flush();
     }
-    
+
     final Queue<Task> _writeQueued = new LinkedBlockingQueue<>();
-    public synchronized boolean hasWriteTaskQueued(){
+
+    
+    public synchronized boolean hasWriteTaskQueued() {
         return !_writeQueued.isEmpty();
     }
-    
+
     /**
      * 检查并执行写入队列中的任务。
      */
-    public synchronized void flush() {
+    public synchronized void flush(Task task) {
+        _writeQueued.offer(task.flush());
+        this.flush();
+    }
+
+    public void flush() {
         if (_writeQueued.isEmpty()) {
             return;
         }
 
         Task task = _writeQueued.peek();
-        if (task.tryLock(writeHandle)) {
-            try {
-                writeImpl(task);
-                _writeQueued.poll();
-            } catch (WritePendingException ex) {
-                //ignored errors
-                writeHandle.release(task);
+        if (task!=null && task.tryLock(writeHandle)) {
+            if (task.operation() == Task.OP_FLUSH) {
+                task=_writeQueued.poll();
+                task.fire(this, Task.EVENT_FLUSH, this, null, null, 0);
+                task.dispose();
+            } else if (task.operation() == Task.OP_CLOSE) {
+                this.closeImpl(_writeQueued.poll());
+            } else {
+                try {
+                    writeImpl(task);
+                    _writeQueued.poll();
+                } catch (WritePendingException ex) {
+                    //ignored errors
+                    writeHandle.release(task);
+                }
             }
         }
     }
 
     public abstract boolean isAcceptable();
 
-    protected class AcceptedHandler<T extends NetworkChannel> implements CompletionHandler<T, Task>,ObjectFactory<AcceptedHandler<T>> {
+    protected class AcceptedHandler<T extends NetworkChannel> implements CompletionHandler<T, Task>, ObjectFactory<AcceptedHandler<T>> {
 
         Connection _conn;
         Object _attachment;
@@ -168,7 +214,7 @@ public abstract class Connection {
 
     }
 
-    protected class ReceivedHandler implements CompletionHandler<Integer, Task>,ObjectFactory<ReceivedHandler> {
+    protected class ReceivedHandler implements CompletionHandler<Integer, Task>, ObjectFactory<ReceivedHandler> {
 
         Connection _conn;
         Object _attachment;
@@ -204,7 +250,7 @@ public abstract class Connection {
         }
     }
 
-    protected class SentHandler implements CompletionHandler<Integer, Task>,ObjectFactory<SentHandler> {
+    protected class SentHandler implements CompletionHandler<Integer, Task>, ObjectFactory<SentHandler> {
 
         Connection _conn;
         Object _attachment;
@@ -216,16 +262,16 @@ public abstract class Connection {
         }
 
         @Override
-        public void completed(Integer count, Task msg) {
+        public void completed(Integer count, Task task) {
             if (count < 0) {
-                _conn.close(msg);
+                _conn.close(task);
                 return;
-            } else if (msg.buffer().hasRemaining()) {
-                _conn.writeImpl(msg);
+            } else if (task.buffer().hasRemaining()) {
+                _conn.writeImpl(task);
                 return;
             }
-            msg.fire(this, Task.EVENT_WRITTEN, _conn, null, null, count);
-            msg.dispose();
+            task.fire(this, Task.EVENT_WRITTEN, _conn, null, null, count);
+            task.dispose();
         }
 
         @Override

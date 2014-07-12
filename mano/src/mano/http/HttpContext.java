@@ -28,16 +28,16 @@ public abstract class HttpContext {
         _application=application;
     }
     */
-    public abstract WebApplication application();
+    public abstract WebApplication getApplication();
     
     
     public abstract boolean isCompleted();
     
     //public abstract boolean complete();
     
-    public abstract HttpRequest request();
+    public abstract HttpRequest getRequest();
 
-    public abstract HttpResponse response();
+    public abstract HttpResponse getResponse();
     
-    public abstract HttpServer server();
+    public abstract HttpServer getServer();
 }
