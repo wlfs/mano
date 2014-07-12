@@ -256,7 +256,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
         }
 
         @Override
-        public HttpRequestHandler next() {
+        public HttpRequestHandler getNextHandler() {
             return this;
         }
     }

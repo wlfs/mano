@@ -41,6 +41,7 @@ public class StaticFileModule implements HttpModule {
     }
 
     private boolean process(HttpContext context, String path, String mime) {
+        System.out.println(path);
         File file = new File(path);
         if (!file.exists() || !file.isFile()) {
             return false;
@@ -53,31 +54,31 @@ public class StaticFileModule implements HttpModule {
         //If-None-Match: W/"50b1c1d4f775c61:df3"
         //http://www.cnblogs.com/tyb1222/archive/2011/12/24/2300246.html
         try {
-            context.response().setContentType(mime);
-            boolean cached=context.request().headers().containsKey("If-Modified-Since") && context.request().headers().containsKey("If-None-Match");
+            context.getResponse().setContentType(mime);
+            boolean cached=context.getRequest().headers().containsKey("If-Modified-Since") && context.getRequest().headers().containsKey("If-None-Match");
             
             try {
-                cached =cached && file.lastModified() == DateTime.parseTime(context.request().headers().get("If-Modified-Since").value(), DateTime.FORMAT_GMT);
+                cached =cached && file.lastModified() == DateTime.parseTime(context.getRequest().headers().get("If-Modified-Since").value(), DateTime.FORMAT_GMT);
             } catch (ParseException e) {
                 cached=false;
             }
-            cached=cached&& etag.equals(context.request().headers().get("If-None-Match").value());
+            cached=cached&& etag.equals(context.getRequest().headers().get("If-None-Match").value());
             if(cached){
-                context.response().status(HttpStatus.NotModified);
+                context.getResponse().status(HttpStatus.NotModified);
             }
             else{
-                context.response().setHeader("Cache-Control", "private");
-                context.response().setHeader("ETag", "\""+etag+":0\"");
-                context.response().setHeader("Last-Modified", DateTime.format(DateTime.FORMAT_GMT, file.lastModified()));
-                context.response().transmit(path);
+                context.getResponse().setHeader("Cache-Control", "private");
+                context.getResponse().setHeader("ETag", "\""+etag+":0\"");
+                context.getResponse().setHeader("Last-Modified", DateTime.format(DateTime.FORMAT_GMT, file.lastModified()));
+                context.getResponse().transmit(path);
             }
             //ETag: "50b1c1d4f775c61:df3" 
             //Last-Modified: Fri, 12 May 2006 18:53:33 GMT
             
         } catch (IOException | InvalidOperationException | NullPointerException ex) {
-            context.response().write(ex.getMessage());
+            context.getResponse().write(ex.getMessage());
         }
-        context.response().end();
+        context.getResponse().end();
 
         return true;
     }
@@ -90,7 +91,7 @@ public class StaticFileModule implements HttpModule {
         }
         for (Entry<String, String> entry : mappings.entrySet()) {
             if (tryPath.endsWith("." + entry.getKey())) {
-                return this.process(context, context.server().mapPath(tryPath), entry.getValue());
+                return this.process(context, context.getServer().mapPath(tryPath), entry.getValue());
             }
         }
         return false;
@@ -98,7 +99,7 @@ public class StaticFileModule implements HttpModule {
 
     @Override
     public boolean handle(HttpContext context) {
-        return this.handle(context, context.request().url().getPath());
+        return this.handle(context, context.getRequest().url().getPath());
     }
 
     @Override

@@ -33,7 +33,7 @@ public class UrlRouteModule implements HttpModule {
         public void scan() {
             URL url;
             try {
-                url = new URL("jar:file:/E:/repositories/java/mano.wrt/dist/mano.wrt.jar!/");
+                url = new URL("jar:file:/E:/repositories/java/mano/mano.wrt/dist/mano.wrt.jar!/");
             } catch (MalformedURLException ex) {
                 return;
             }
@@ -61,6 +61,7 @@ public class UrlRouteModule implements HttpModule {
         }
 
         public void onFoundClass(Class<?> clazz) {
+            //clazz.getInterfaces()
             System.out.println(clazz);
         }
 
@@ -76,13 +77,28 @@ public class UrlRouteModule implements HttpModule {
 
     @Override
     public boolean handle(HttpContext context) {
-        return this.handle(context, context.request().url().getPath());
+        return this.handle(context, context.getRequest().url().getPath());
     }
 
     @Override
     public boolean handle(HttpContext context, String tryPath) {
-        context.response().write("hello");
-        context.response().end();
+        RouteService rs = new RouteService(context);
+        
+        rs.set("title", "hello");
+        
+        rs.setResult(new ViewResult());
+        //rs.setResult(new ContentResult("你好世界，我是jun!"));
+        //context.getResponse().write("hello");
+        ActionResult result = rs.getResult();
+        if (result != null) {
+            result.execute(rs);
+            //javax.tools.JavaCompiler compiler=javax.tools.ToolProvider.getSystemJavaCompiler();
+            //http://blog.csdn.net/menxu_work/article/details/9187027
+            
+        }
+        if (!context.isCompleted()) {
+            context.getResponse().end();
+        }
         return true;
     }
 

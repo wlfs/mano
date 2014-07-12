@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * HttpContext的实现
+ *
  * @author jun(jun@diosay.com)
  */
 class HttpContextImpl extends HttpContext implements Runnable, Disposable {
@@ -43,19 +44,23 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
     public HttpContextImpl(HttpService svc, Connection connection) {
         this.service = svc;
         this.conn = connection;
-        //_writeQueued = new LinkedBlockingQueue<>();
     }
 
     @Override
-    public HttpRequest request() {
+    public HttpRequest getRequest() {
         return req;
     }
 
     @Override
-    public HttpResponse response() {
+    public HttpResponse getResponse() {
         return rsp;
     }
 
+    @Override
+    public WebApplication getApplication() {
+        return _application;
+    }
+    
     public void init() {
         buffer = this.service.workBufferPool().get();
         req = new HttpRequestImpl(this);
@@ -64,11 +69,17 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
         receive();
     }
 
+    /**
+     * 关闭连接
+     */
     synchronized void close() {
         requestHandler = null;
-        conn.close(service.getMessage().attach(this));
+        conn.close(true, service.newTask().attach(this));
     }
 
+    /**
+     * 接收数据
+     */
     synchronized void receive() {
 
         if (readBuffer != null) {
@@ -79,52 +90,53 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
             buffer.flush();
             this.run();
         } else {
-            Task msg=service.getMessage().attach(this);
-            msg.buffer(service.ioBufferPool().get());
+            Task task = service.newTask().attach(this);
+            task.buffer(service.ioBufferPool().get());
 
-            if (!conn.read(msg)) {
+            if (!conn.read(task)) {
                 this.close();// error
             }
         }
     }
 
+    /**
+     * 定入数据
+     * @param buffer 
+     */
     void write(ByteBuffer buffer) {
-        write(service.getMessage().buffer(buffer).attach(this));
+        write(service.newTask().buffer(buffer).attach(this));
     }
 
-    void write(Task msg){
-        conn.write(msg);
-        //this.flush();
+    /**
+     * 执行传输一个任务
+     * @param task 
+     */
+    void write(Task task) {
+        conn.write(task);
+        conn.flush();
     }
 
-    /*synchronized void flush() {
-        if (!conn.connected()) {
-            close();
-        } else if ((closedFlag.get() && _writeQueued.isEmpty())) {
-            complete();
-        } else {
-            Task msg=_writeQueued.peek();
-            if (msg != null && conn.write(msg)) {
-                _writeQueued.poll();
-            }
-        }
-    }*/
-
+    /**
+     * 结束
+     */
     synchronized void end() {
-        this.closedFlag.set(true);
-        //this.flush();
+        closedFlag.set(true);
+        conn.flush(service.newTask().attach(this));
     }
 
+    /**
+     * 完成
+     */
     void complete() {
+        //System.out.println("finish");
         if (completed) {
             return;
         }
         completed = true;
         String req_conn = req._headers.containsKey("Connection") ? req._headers.get("Connection").value().trim() : "keep-alive";
-        String rsp_conn = rsp.headers.containsKey("Connection") ? req._headers.get("Connection").value().trim() : "keep-alive";
-        if ("keep-alive".equalsIgnoreCase(req_conn) && conn.connected()) {//Keep-Alive: timeout=5, max=100 Connection: keep-alive
-            HttpContextImpl ctx = new HttpContextImpl(service, conn);
-            ctx.init();
+        String rsp_conn = rsp.headers.containsKey("Connection") ? rsp.headers.get("Connection").value().trim() : "keep-alive";
+        if ("keep-alive".equalsIgnoreCase(req_conn) && "keep-alive".equalsIgnoreCase(rsp_conn) && conn.connected()) {//Keep-Alive: timeout=5, max=100 Connection: keep-alive
+            service.context(conn);
         } else {
             this.close();
         }
@@ -135,30 +147,40 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
      * 只处理request请求（接收数据）。
      */
     @Override
-    public void run() {
+    public synchronized void run() {
         if (requestHandler == null) {
             return;
         }
         try {
             requestHandler.onRead(buffer);
         } catch (HttpException | IOException ex) {
-            service.logger().error("", ex);
+            this.onError(ex);
             return;
         }
+
         //error
-        if (requestHandler.next() == null) {
+        if (this.disposed || this.completed || requestHandler.getNextHandler() == null) {
             //TODO: 未处理 buffer
+            requestHandler = null;
             return;
-        } else if (requestHandler.equals(requestHandler.next())) {
+        } else if (requestHandler.equals(requestHandler.getNextHandler())) {
             if (buffer.hasRemaining()) {
                 buffer.compact();
                 if (!buffer.hasRemaining()) {
+                    //数据未处理?
+                    this.onError(new HttpException(HttpStatus.InternalServerError, "Internal Server Error(buffer full)"));
+                    return;
                 }
             } else {
                 buffer.reset();
             }
         } else {
-            requestHandler = requestHandler.next();
+            requestHandler = requestHandler.getNextHandler();
+            if (requestHandler == null) {
+                //什么情况?
+                this.onError(new HttpException(HttpStatus.InternalServerError, "Internal Server Error(lost handler)"));
+                return;
+            }
             if (buffer.hasRemaining()) {
                 run();
                 return;
@@ -170,7 +192,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
     }
 
     @Override
-    public HttpServer server() {
+    public HttpServer getServer() {
         return _server;
     }
 
@@ -183,6 +205,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
                 status = HttpStatus.InternalServerError;
             }
             try {
+                rsp.setHeader("Connection", "close");
                 rsp.status(status, HttpStatus.getKnowDescription(status));
             } catch (InvalidOperationException ignored) {
                 this.close();
@@ -196,10 +219,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
         }
     }
 
-    @Override
-    public WebApplication application() {
-        return _application;
-    }
+    
 
     @Override
     public boolean isCompleted() {
@@ -220,12 +240,12 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
         readBuffer = null;
         /*Task msg;
          while (!_writeQueued.isEmpty()) {
-            msg = _writeQueued.poll();
-            if (msg != null) {
-                msg.dispose();
-            }
-        }
-        _writeQueued.clear();*/
+         msg = _writeQueued.poll();
+         if (msg != null) {
+         msg.dispose();
+         }
+         }
+         _writeQueued.clear();*/
 
     }
 
@@ -261,7 +281,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
         }
 
         @Override
-        public HttpRequestHandler next() {
+        public HttpRequestHandler getNextHandler() {
             return handler;
         }
 
@@ -284,8 +304,8 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
             try {
                 while ((line = buffer.readln()) != null) {
                     if ("".equals(line)) {
-                        handler = null;
-                        context.req.hasPostData(); //确定POST数据
+                        handler = null;//结束头部解析
+                        context.req.hasPostData(); //提前确定POST数据，发现错误
                         if (!context.service.handle(context)) {
                             throw new HttpException(HttpStatus.BadRequest, "Bad Request (Invalid Hostname)");
                         }
@@ -304,7 +324,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
         }
 
         @Override
-        public HttpRequestHandler next() {
+        public HttpRequestHandler getNextHandler() {
             return handler;
         }
 

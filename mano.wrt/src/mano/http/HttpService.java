@@ -7,66 +7,70 @@
  */
 package mano.http;
 
-
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
+import java.nio.channels.InterruptedByTimeoutException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.concurrent.Executors;
 import mano.Activator;
 import mano.Service;
 import mano.io.BufferPool;
 import mano.io.ByteBufferPool;
 import mano.net.AioConnection;
+import mano.net.Connection;
 import mano.net.Task;
-import mano.util.CachedObjectFactory;
 import mano.util.Logger;
 import mano.util.NameValueCollection;
+import mano.util.Pool;
 import mano.util.Utility;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
 import mano.web.WebApplication;
 import mano.web.WebApplicationStartupInfo;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.StandardSocketOptions;
-import java.nio.channels.InterruptedByTimeoutException;
-import java.util.ArrayList;
-import java.util.UUID;
-import java.util.concurrent.Executors;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
+ * HTTP 服务的标准实现。
  *
  * @author jun
  */
 public class HttpService extends Service {
 
+    private ArrayList<String> documents;
+    private NameValueCollection<HttpModuleSettings> modules;
+    private NameValueCollection<WebApplicationStartupInfo> appInfos;
+    private NameValueCollection<ConnectionInfo> infos = new NameValueCollection<>();
     private final BufferPool _workBufferPool; //工作缓冲区池,4k
     private final BufferPool _tempBufferPool; //临时缓冲区池,64k
     private final ByteBufferPool _ioBufferPool; //io缓冲区池,512b
-    CachedObjectFactory<Task> _factory;
+    private Pool<HttpTask> _factory;
+    private String bootstrapPath;
+    private String configPath;
 
     public HttpService() {
-
-        //this._logger=new ark.logging.Log4jProvider();
-        _factory = new CachedObjectFactory<Task>(HttpConnectionHandler.class, this, this);
-
+        _factory = new Pool<>(() -> new HttpTask(this));
         _workBufferPool = new BufferPool(4096, 16);//
         _tempBufferPool = new BufferPool(1024 * 64, 1);
         _ioBufferPool = new ByteBufferPool(512, 128);
     }
 
-    public BufferPool workBufferPool() {
+    BufferPool workBufferPool() {
         return _workBufferPool;
     }
 
-    public BufferPool tempBufferPool() {
+    BufferPool tempBufferPool() {
         return _tempBufferPool;
     }
 
-    public ByteBufferPool ioBufferPool() {
+    ByteBufferPool ioBufferPool() {
         return _ioBufferPool;
     }
 
-    Task getMessage() {
+    Task newTask() {
         return _factory.get();
     }
 
@@ -85,13 +89,9 @@ public class HttpService extends Service {
         }
     }
 
-    ArrayList<String> documents;
-    NameValueCollection<HttpModuleSettings> modules;
-    NameValueCollection<WebApplicationStartupInfo> appInfos;
+    private void configServices() throws XmlException {
 
-    void configServices() throws XmlException {
-
-        XmlHelper helper = XmlHelper.load("E:\\repositories\\java\\mano.wrt\\src\\mano\\http\\config.xml");
+        XmlHelper helper = XmlHelper.load(this.configPath);
         Node node, attr, root = helper.selectNode("/configuration/http.service/machine");
         String s;
 
@@ -158,6 +158,7 @@ public class HttpService extends Service {
             settings.settings = new NameValueCollection<>();
             settings.service = this;
             settings.modules = modules;
+            settings.serverPath = this.bootstrapPath;
             NodeList params = helper.selectNodes(nodes.item(i), "params/param");
             for (int j = 0; j < params.getLength(); j++) {
                 attrs = params.item(j).getAttributes();
@@ -166,20 +167,22 @@ public class HttpService extends Service {
             appInfos.put(s, settings);
         }
         //include
-
     }
 
     boolean handle(HttpContextImpl context) {
         WebApplicationStartupInfo info = null;
-        info = appInfos.get(context.request().headers().get("Host").value());
+        info = appInfos.get(context.getRequest().headers().get("Host").value());
         if (info == null) {
             info = appInfos.get("*"); //默认
         }
         if (info != null) {
             WebApplication app = info.getInstance();
             if (app != null) {
-                context._server = new HttpServer();
-                context._server.root = info.path;
+                String path = info.path;
+                if (path.startsWith("./") || path.startsWith(".\\")) {
+                    path = this.bootstrapPath + path.substring(1);
+                } 
+                context._server = new HttpServerImpl(path, "/", "ManoServer/1.1");
                 context._application = app;
                 app.init(context);
                 return true;
@@ -189,13 +192,10 @@ public class HttpService extends Service {
         return false;
     }
 
-    class ConnectionInfo {
-
-        public InetSocketAddress address;
-        public boolean disabled = false;
+    void context(Connection conn) {
+        HttpContextImpl context = new HttpContextImpl(this, conn);
+        context.init();
     }
-
-    NameValueCollection<ConnectionInfo> infos = new NameValueCollection<>();
 
     @Override
     public void param(String name, Object value) {
@@ -221,9 +221,18 @@ public class HttpService extends Service {
                     info.disabled = "true".equalsIgnoreCase(value == null ? "" : value.toString().trim());
                 }
             }
+        } else if (arr.length == 2) {
+            if ("path".equalsIgnoreCase(arr[0])) {
+                if ("bootstrap".equalsIgnoreCase(arr[1])) {
+                    this.bootstrapPath = value.toString();
+                } else if ("config".equalsIgnoreCase(arr[1])) {
+                    this.configPath = value.toString();
+                }
+            }
         }
     }
 
+    //启动服务
     @Override
     public void run() {
         try {
@@ -232,7 +241,7 @@ public class HttpService extends Service {
                 if (info.disabled) {
                     continue;
                 }
-                conn = new AioConnection(_factory, info.address, Executors.newFixedThreadPool(10));
+                conn = new AioConnection(info.address, Executors.newFixedThreadPool(10));
                 conn.setOption(StandardSocketOptions.SO_REUSEADDR, true);
                 conn.bind(100);
                 conn.accept(_factory.get());
@@ -240,27 +249,33 @@ public class HttpService extends Service {
                 this.logger().infoFormat("listening for:%s", info.address.toString());
             }
         } catch (IOException e) {
-            this.logger().error("", e);
+            this.logger().error("mano.http.HttpService.run", e);
         }
     }
 
-    public class HttpConnectionHandler extends Task {
+    //=========================================================
+    private class ConnectionInfo {
+
+        public InetSocketAddress address;
+        public boolean disabled = false;
+    }
+
+    private class HttpTask extends Task {
 
         HttpService service;
-        UUID id;
 
-        public HttpConnectionHandler(HttpService listener) {
-            service = listener;
-            id = UUID.randomUUID();
+        public HttpTask(HttpService svc) {
+            service = svc;
         }
 
         @Override
         public void dispose() {
-            if (!this.cancelDisposing) {
-                return;
-            }
-            super.dispose();
-            service._factory.put(this);
+            /*return;
+             if (!this.cancelDisposing) {
+             return;
+             }
+             super.dispose();*/
+            //service._factory.put(this);
         }
 
         @Override
@@ -271,35 +286,41 @@ public class HttpService extends Service {
                 accept().setOption(StandardSocketOptions.SO_REUSEADDR, true);
                 accept().setOption(StandardSocketOptions.SO_KEEPALIVE, false);
             } catch (IOException e) {
-                service.logger().error(HttpConnectionHandler.class.getName(), e);
+                service.logger().error(HttpTask.class.getName(), e);
             }
             try {
                 service.logger().trace("connected:" + this.accept().getRemoteAddress());
             } catch (IOException ignored) {
             }
 
-            HttpContextImpl context = new HttpContextImpl(service, accept());
-            context.init();
-
             //TODO: 服务器异常检测
-            this.cancelDisposing=true;//重复使用当前对象
+            this.cancelDisposing = true;//重复使用当前对象
             this.connect().accept(this);
-            
+
+            service.context(accept());
+        }
+
+        private HttpContextImpl getContext() {
+            if (connect() == null || connect().isAcceptable()) {
+                return null;
+            }
+            HttpContextImpl context = (HttpContextImpl) attachment();
+
+            if (context == null || context.disposed || !this.connect().connected()) {
+                return null;
+            }
+            return context;
         }
 
         @Override
         protected void onRead() {
-            if (connect().isAcceptable()) {
-                return;
-            }
-            HttpContextImpl context = (HttpContextImpl) attachment();
-
-            if (context == null || context.disposed) {
-                connect().close(null);
+            HttpContextImpl context = getContext();
+            if (context == null) {
+                this.onClosed();
                 return;
             }
 
-            if (this.operation() == Task.OP_BUFFER){
+            if (this.operation() == Task.OP_BUFFER) {
                 this.buffer().flip();
                 context.buffer.write(this.buffer());
                 if (!this.buffer().hasRemaining()) {
@@ -314,23 +335,11 @@ public class HttpService extends Service {
 
         @Override
         protected void onWriten() {
-            if (connect().isAcceptable()) {
-                return;
-            }
-            HttpContextImpl context = (HttpContextImpl) attachment();
-            if (context == null || context.disposed) {
-                connect().close(null);
-                return;
-            } else if (!this.connect().connected() || (this.error() != null && this.error() instanceof InterruptedByTimeoutException) || (this.error() != null && this.error().getMessage().indexOf("connection was aborted") > 0)) {
-                context.close();
-                return;
-            }
-            
-            if(connect().hasWriteTaskQueued()){
+            HttpContextImpl context = getContext();
+            if (context == null) {
+                this.onClosed();
+            } else {
                 connect().flush();
-            }
-            else if(context.closedFlag.get()){
-                context.complete();
             }
         }
 
@@ -340,26 +349,80 @@ public class HttpService extends Service {
                 return;
             }
             Throwable cause = error();
-            HttpContextImpl context = (HttpContextImpl) attachment();
-            if (context == null || context.disposed) {
-                connect().close(null);
-                return;
-            } else if (!this.connect().connected()
-                    || (cause != null && ((cause instanceof InterruptedByTimeoutException) 
-                    || (cause.getMessage() + "").indexOf("connection was aborted") > 0))) {
-                context.close();
-                return;
+            HttpContextImpl context = getContext();
+            if (context == null) {
+                this.onClosed();
+            } else if (cause != null && ((cause instanceof InterruptedByTimeoutException) || (cause.getMessage() + "").indexOf("connection was aborted") > 0)) {
+                System.out.println("onFailed 2:" + cause.getMessage());
+                this.onClosed();
+            } else {
+                context.onError(cause);
             }
-            context.onError(error());
         }
 
         @Override
         protected void onClosed() {
+
             System.out.println("closed conn");
-            HttpContextImpl context = (HttpContextImpl) attachment();
+            try {
+                connect().close(true, null);//两次确认并关闭对象
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            HttpContextImpl context = getContext();
             if (context != null) {
                 context.dispose();
             }
         }
+
+        @Override
+        protected void onFlush() {
+            HttpContextImpl context = getContext();
+            if (context == null) {
+                this.onClosed();
+            } else {
+                if (connect().hasWriteTaskQueued()) {
+                    connect().flush();
+                } else if (context.closedFlag.get()) {
+                    context.complete();
+                }
+            }
+        }
     }
+
+    private class HttpServerImpl implements HttpServer {
+
+        HttpServerImpl(String basedir, String vpath, String version) {
+            this._basedir = basedir;
+            this._version = version;
+            this._vpath = vpath;
+        }
+
+        public String _basedir;
+        private String _version = "ManoServer/1.1";
+        private String _vpath;
+
+        @Override
+        public String getBaseDirectory() {
+            return _basedir;
+        }
+
+        @Override
+        public String getVirtualPath() {
+            return _vpath;
+        }
+
+        @Override
+        public String mapPath(String vpath) {
+            return Paths.get(_basedir, _vpath, vpath).toString();
+        }
+
+        @Override
+        public String getVersion() {
+            return _version;
+        }
+
+    }
+
 }

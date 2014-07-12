@@ -145,8 +145,8 @@ final class HttpResponseImpl extends HttpResponse {
             throw new IOException("错误的传输方式");
         }
 
-        _context.write(ByteBuffer.wrap(String.format("%x %s", length, CRLF).replace("0x", "").getBytes(this.charset())));
-        _context.write(_context.service.getMessage().channel(chan, position, length).attach(_context));
+        _context.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(length), CRLF).getBytes(this.charset())));
+        _context.write(_context.service.newTask().channel(chan, position, length).attach(_context));
         _context.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
     }
 
@@ -177,7 +177,7 @@ final class HttpResponseImpl extends HttpResponse {
 
         if (_chunked) {
             if (len > 0) {
-                _context.write(ByteBuffer.wrap(String.format("%x %s", len, CRLF).replace("0x", "").getBytes(this.charset())));
+                _context.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(len), CRLF).getBytes(this.charset())));
                 _context.write(_buffer);
                 _buffer = null;
                 _context.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
