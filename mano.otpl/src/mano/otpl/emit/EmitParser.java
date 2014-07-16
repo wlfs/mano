@@ -12,9 +12,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
@@ -30,7 +33,7 @@ import mano.util.Utility;
  */
 public class EmitParser extends Parser {
 
-    public static void main(String[] args) {
+    public static void mains(String[] args) {
         EmitParser parser = new EmitParser();
         /*Object t = paraser.parseExpr("123.56", 0);//13
          System.out.println(t);*/
@@ -52,7 +55,8 @@ public class EmitParser extends Parser {
             }
             file.createNewFile();
             FileOutputStream fs = new FileOutputStream(file);
-            OutputStreamWriter write = new OutputStreamWriter(fs, "UTF-8");
+            //OutputStreamWriter write = new OutputStreamWriter(fs, "UTF-8");
+            parser.parse();
             parser.compile(fs);
             fs.close();
         } catch (IOException ex) {
@@ -63,10 +67,32 @@ public class EmitParser extends Parser {
 
     @Override
     public void parse() throws IOException {
+        this.parseParent(null);
+    }
+    EmitParser parent;
+
+    private void parseParent(Document content) throws IOException {
+        this.conentDom = content;
         super.parse();
 
-        this.dom.parse();
-        codes.add(OpCode.create(OpCodes.EXIT));
+        if (dom.Layout != null) {
+            parent = new EmitParser();
+            String file = dom.Layout.getSource();
+            if (file.startsWith("./") || file.startsWith(".\\")) {
+                file = file.substring(2);
+            } else if (file.startsWith("/") || file.startsWith("\\")) {
+                file = file.substring(1);
+            }
+            parent.open(Paths.get(Paths.get(this.getSourceName()).getParent().toString(), file).toString());
+            parent.parseParent(dom);
+            //setparent
+            //parent.parse(parent.dom, null, null);
+        } else {//  if (this.conentDom == null)
+            codes.add(OpCode.create(OpCodes.DOM));
+            parse(dom, null, null);
+            codes.add(OpCode.create(OpCodes.EXIT));
+        }
+
     }
 
     LinkedList<OpCode> codes = new LinkedList<>();
@@ -77,19 +103,37 @@ public class EmitParser extends Parser {
         return addr;
     }
 
+    private long newAddress(int size) {
+        addr++;
+        long r = addr;
+        addr += size;
+        return r;
+    }
+
     @Override
     public void parse(Node node) {//OpCode loop_start, OpCode loop_end
         if (node == null || node.mark) {
             return;
         }
         if (node.isBlock()) {
-            parse((Block) node);
+            parseBlock((Block) node,null,null);
         } else {
-            parse((Span) node);
+            parseSpan((Span) node,null,null);
         }
     }
 
-    private void parse(Block node) {
+    public void parse(Node node, OpCode loop_start, OpCode loop_end) {
+        if (node == null || node.mark) {
+            return;
+        }
+        if (node.isBlock()) {
+            parseBlock((Block) node, loop_start, loop_end);
+        } else {
+            parseSpan((Span) node, loop_start, loop_end);
+        }
+    }
+
+    private void parseBlock(Block node, OpCode loop_start, OpCode loop_end) {
         if (node == null) {
             return;
         }
@@ -104,13 +148,82 @@ public class EmitParser extends Parser {
             case Node.LEXB_BLOCK:
                 break;
             case Node.LEXB_DOM:
-                codes.add(OpCode.create(OpCodes.DOM));
+                //codes.add(OpCode.create(OpCodes.DOM));
                 for (Node sub : node.getNodes()) {
-                    sub.parse();
+                    parse(sub, null, null);
                 }
                 return;
-            case Node.LEXB_EACH:
-                break;
+            case Node.LEXB_EACH: {
+                String source = node.getSource();
+                int index;
+                if ((index = assertKeyword(":", source)) < 0) {
+                    this.reportError("语法错误");
+                }
+                int found = this.parseIdentifier(source, index);
+                if (found < 0) {
+                    this.reportError("非法的标识符");
+                }
+                String id = source.substring(index, found);
+                OpCode ret = OpCode.label();
+                OpCode begin = OpCode.label();
+                OpCode end = OpCode.label();
+                OpCode label = OpCode.label();
+                OpCode label2 = OpCode.label();
+                codes.add(begin);
+
+                String part = Integer.toHexString(UUID.randomUUID().hashCode());
+                String iterator = id + "$itel_" + part;
+                String hasnext = id + "$hnxt_" + part;
+                String next = id + "$nxt_" + part;
+                this.parseExpr(source.substring(found), 0);//参数
+                codes.add(OpCode.create(OpCodes.LOAD_ITERATOR));//将对象转换为迭代器，如果对象为null则会创建一个空迭代
+                codes.add(OpCode.create(OpCodes.SET_VAR, iterator));//保存到迭代器变量
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));//载入迭代器对象
+                codes.add(OpCode.create(OpCodes.LOAD_METHOD, 0, "hasNext"));//找到迭代器方法
+                codes.add(OpCode.create(OpCodes.SET_VAR, hasnext));//保存迭代器方法变量
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));//载入迭代器对象
+                codes.add(OpCode.create(OpCodes.LOAD_METHOD, 0, "next"));//找到迭代器方法
+                codes.add(OpCode.create(OpCodes.SET_VAR, next));//保存迭代器方法变量
+
+                //第一次判断
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, hasnext));
+                codes.add(OpCode.create(OpCodes.CALL, 0));
+                codes.add(OpCode.create(OpCodes.CONDITION_JUMP, label2, end));
+                codes.add(label);
+                //循环判断
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, hasnext));
+                codes.add(OpCode.create(OpCodes.CALL, 0));
+                codes.add(OpCode.create(OpCodes.JUMP_FLASE, ret));
+                codes.add(label2);
+                //设置迭代值
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));
+                codes.add(OpCode.create(OpCodes.LOAD_VAR, next));
+                codes.add(OpCode.create(OpCodes.CALL, 0));
+                codes.add(OpCode.create(OpCodes.SET_VAR, id));
+
+                //循环体
+                for (Node sub : node.getNodes()) {
+                    parse(sub, label, ret);
+                }
+                codes.add(OpCode.create(OpCodes.JUMP, label));
+                codes.add(end);
+
+                //else
+                Node nextNode = node.getNextNode();
+                if (nextNode != null && nextNode.getNodeType() == Node.LEXB_ELSE) {
+                    nextNode.mark = true;
+
+                    for (Node sub : ((Block) nextNode).getNodes()) {
+                        parse(sub, null, null);
+                    }
+
+                    codes.add(OpCode.create(OpCodes.JUMP, ret));
+                }
+                codes.add(ret);
+                return;
+            }
             case Node.LEXB_ELSE:
                 throw new java.lang.RuntimeException("else");
             case Node.LEXB_FOR: {
@@ -180,15 +293,7 @@ public class EmitParser extends Parser {
                 codes.add(OpCode.create(OpCodes.CONDITION_JUMP, ret, label2));//循环判断
                 codes.add(label2);
                 for (Node sub : node.getNodes()) {
-                    if (sub.getNodeType() == Node.LEXS_BREAK) {
-                        sub.mark = true;
-                        codes.add(OpCode.create(OpCodes.JUMP, ret));
-                    } else if (sub.getNodeType() == Node.LEXS_CONTINUE) {
-                        sub.mark = true;
-                        codes.add(OpCode.create(OpCodes.JUMP, label));
-                    } else {
-                        sub.parse();
-                    }
+                    parse(sub, label, ret);
                 }
                 codes.add(OpCode.create(OpCodes.JUMP, label));
                 codes.add(end);
@@ -200,7 +305,7 @@ public class EmitParser extends Parser {
                     end = OpCode.create(OpCodes.END_BLOCK, begin);
                     codes.add(begin);
                     for (Node sub : ((Block) next).getNodes()) {
-                        sub.parse();
+                        parse(sub, null, null);
                     }
                     codes.add(OpCode.create(OpCodes.JUMP, ret));
                     codes.add(end);
@@ -220,7 +325,7 @@ public class EmitParser extends Parser {
                 codes.add(OpCode.create(OpCodes.CONDITION_JUMP, label, end));
                 codes.add(label);
                 for (Node sub : node.getNodes()) {
-                    sub.parse();
+                    parse(sub, label, ret);
                 }
                 codes.add(OpCode.create(OpCodes.JUMP, ret));
                 codes.add(end);
@@ -238,7 +343,7 @@ public class EmitParser extends Parser {
                         codes.add(OpCode.create(OpCodes.CONDITION_JUMP, label, end));
                         codes.add(label);
                         for (Node sub : ((Block) next).getNodes()) {
-                            sub.parse();
+                            parse(sub, label, ret);
                         }
                         codes.add(OpCode.create(OpCodes.JUMP, ret));
                         codes.add(end);
@@ -255,7 +360,7 @@ public class EmitParser extends Parser {
                     end = OpCode.create(OpCodes.END_BLOCK, begin);
                     codes.add(begin);
                     for (Node sub : ((Block) next).getNodes()) {
-                        sub.parse();
+                        parse(sub, label, ret);
                     }
                     codes.add(OpCode.create(OpCodes.JUMP, ret));
                     codes.add(end);
@@ -267,8 +372,9 @@ public class EmitParser extends Parser {
         }
         System.out.println("no parsing:" + node.getNodeType());
     }
+    Document conentDom;
 
-    private void parse(Span node) {
+    private void parseSpan(Span node, OpCode loop_start, OpCode loop_end) {
         if (node == null) {
             return;
         }
@@ -277,11 +383,28 @@ public class EmitParser extends Parser {
             return;
         }
         switch (node.getNodeType()) {
-            case Node.LEXS_BODY:
+            case Node.LEXS_BODY: {
+                if (this.conentDom == null) {
+                    throw new java.lang.RuntimeException("语法错误，布局模板不能单独解析");
+                }
+                this.parse(conentDom);
+                return;
+            }
             case Node.LEXS_BREAK:
+                if (loop_end == null) {
+                    throw new java.lang.RuntimeException("语法错误，不在循环中");
+                }
+                codes.add(OpCode.create(OpCodes.JUMP, loop_end));
+                return;
             case Node.LEXS_CALL:
             case Node.LEXS_CCALL:
+                break;
             case Node.LEXS_CONTINUE:
+                if (loop_start == null) {
+                    throw new java.lang.RuntimeException("语法错误，不在循环中");
+                }
+                codes.add(OpCode.create(OpCodes.JUMP, loop_start));
+                return;
             case Node.LEXS_RAW:
             case Node.LEXS_ENDBLOCK:
             case Node.LEXS_ENDEACH:
@@ -291,7 +414,49 @@ public class EmitParser extends Parser {
             case Node.LEXS_EXIT:
             case Node.LEXS_INCLUDE:
             case Node.LEXS_LAYOUT:
-                throw new java.lang.RuntimeException("bbbbb");
+
+                break;
+            case Node.LEXS_PLACE: {
+                String source = node.getSource();
+                int index;
+                if ((index = assertKeyword(":", source)) < 0) {
+                    this.reportError("语法错误");
+                }
+                int found = this.parseIdentifier(source, index);
+                if (found < 0) {
+                    this.reportError("非法的标识符");
+                }
+                String id = source.substring(index, found);
+                index = this.parseIdentifier(source, found + 1);
+                boolean required = false;
+                if (index < 0) {
+                    required = false;
+                } else {
+                    String tmp = source.substring(found + 1, index).trim();
+                    if ("".equals(tmp) || "false".equals(tmp)) {
+                        required = false;
+                    } else if ("true".equals(tmp)) {
+                        required = true;
+                    } else {
+                        this.reportError("必须是 true 或 false");
+                    }
+                }
+
+                if (conentDom == null || conentDom.blocks == null || !conentDom.blocks.containsKey(id)) {//TODO: 处理失败？
+                    if (required) {
+                        this.reportError("block 是必须的 但未提供或未找到");
+                    } else {
+                        return;
+                    }
+                }
+
+                Block block = conentDom.blocks.get(id);
+
+                for (Node sub : block.getNodes()) {
+                    this.parse(sub, loop_start, loop_end);//是否需要传loop?
+                }
+                return;
+            }
             case Node.LEXS_PLAIN:
                 codes.add(OpCode.create(OpCodes.PRINT_STR, node.getSource()));
                 return;
@@ -312,10 +477,18 @@ public class EmitParser extends Parser {
      *
      * @return
      */
-    private OpCode findSwap(LinkedList<OpCode> link) {
+    private OpCode findSwap(List<OpCode> l) {
         if (!canSwap) {
             return null;
         }
+        LinkedList<OpCode> link;
+
+        if (l instanceof Tuple) {
+            link = ((Tuple) l).list;
+        } else {
+            link = (LinkedList) l;
+        }
+
         canSwap = false;
         OpCode code = null;
         try {
@@ -363,7 +536,7 @@ public class EmitParser extends Parser {
         parseExpr(source, index, codes, new AtomicInteger(0));
     }
 
-    protected void parseExpr(String source, int index, LinkedList<OpCode> link, AtomicInteger argCount) {
+    protected void parseExpr(String source, int index, List<OpCode> link, AtomicInteger argCount) {
         if (source == null || index >= source.length()) {
             return;
         }
@@ -371,14 +544,14 @@ public class EmitParser extends Parser {
         for (; index < source.length(); index++) {
             if (this.isWhitespace(source.charAt(index))) {//空白
                 //ignored
-            } else if (source.charAt(index) == '$' || source.charAt(index) == '.' || this.isLetter(source.charAt(index))) {//视图对象
+            } else if (source.charAt(index) == '@' || source.charAt(index) == '.' || this.isLetter(source.charAt(index))) {//视图对象
                 boolean local = false;
                 boolean memberacc = false;
-                if (source.charAt(index) == '$') {
-                    local = true;
+                if (source.charAt(index) == '@') {
+                    local = true;//TODO: 仅调用
                     index++;
                 } else if (source.charAt(index) == '.') {
-                    memberacc = true;
+                    memberacc = true;//移动到下部
                     index++;
                 }
 
@@ -388,7 +561,14 @@ public class EmitParser extends Parser {
                 }
                 String id = source.substring(index, tmp);
                 index = tmp - 1;
-                OpCode swap = findSwap();
+                OpCode swap = findSwap(link);
+                if (id.equals("true") || id.equals("false") || id.equals("null")) {
+                    link.add(OpCode.create(OpCodes.LOAD_STR, "[!--SYS-TYPE--$" + id + "]"));
+                    if (swap != null) {
+                        link.add(swap);
+                    }
+                    return;
+                }
                 //预测后续
                 if (index + 1 >= source.length()) {
                     //处理
@@ -405,12 +585,16 @@ public class EmitParser extends Parser {
                     return;
                 }
                 int type = 0;
-                if (source.charAt(index + 1) == '[') {
+                int tinx = 0;
+                int tmp2 = 0;
+                if ((tmp = this.assertKeyword("[", source, index + 1)) > -1) {
                     type = 1;//索引
-                    tmp = this.parseRange(source, index + 2, "[", "]");
-                } else if (source.charAt(index + 1) == '(') {
+                    tinx = tmp;
+                    tmp = this.parseRange(source, tmp + 1, "[", "]");
+                } else if ((tmp = this.assertKeyword("(", source, index + 1)) > -1) {
                     type = 2;//函数
-                    tmp = this.parseRange(source, index + 2, "(", ")");
+                    tinx = tmp;
+                    tmp = this.parseRange(source, tmp + 1, "(", ")");
                 }
                 if (type != 0) {
                     if (tmp < 0) {
@@ -418,7 +602,7 @@ public class EmitParser extends Parser {
                     }
                     LinkedList<OpCode> args = new LinkedList<>();
                     AtomicInteger count = new AtomicInteger(0);
-                    this.parseExpr(source.substring(index + 2, tmp), 0, args, count);//参数
+                    this.parseExpr(source.substring(tinx, tmp), 0, args, count);//参数
                     if (!args.isEmpty()) {
                         count.addAndGet(1);
                     }
@@ -466,7 +650,7 @@ public class EmitParser extends Parser {
                 }
                 String part = source.substring(index, tmp);
                 index = tmp;
-                OpCode swap = findSwap();
+                OpCode swap = findSwap(link);
                 if (index < source.length() && source.charAt(index) == '.') {
                     tmp = this.parseNumber(source, index + 1);
                     if (tmp < 0) {
@@ -489,14 +673,16 @@ public class EmitParser extends Parser {
                 if (tmp < 0) {
                     this.reportError("syntax error,illegal characters at " + index);
                 }
-                this.parseExpr(source.substring(index + 1, tmp), 0);
+                Tuple tup = new Tuple();
+                this.parseExpr(source.substring(index + 1, tmp), 0, tup, new AtomicInteger());
+                link.add(tup);
                 index = tmp + 1;
             } else if (source.charAt(index) == '\'') {//字符串
                 int tmp = this.parseRange(source, index + 1, "'", "'");
                 if (tmp < 0) {
                     this.reportError("syntax error,illegal characters at " + index);
                 }
-                OpCode swap = findSwap();
+                OpCode swap = findSwap(link);
                 link.add(OpCode.create(OpCodes.LOAD_STR, source.substring(index + 1, tmp)));
                 if (swap != null) {
                     link.add(swap);
@@ -513,7 +699,7 @@ public class EmitParser extends Parser {
                     }
                     String part = "-" + source.substring(index, tmp);
                     index = tmp;
-                    OpCode swap = findSwap();
+                    OpCode swap = findSwap(link);
                     if (index < source.length() && source.charAt(index) == '.') {
                         tmp = this.parseNumber(source, index + 1);
                         if (tmp < 0) {
@@ -584,137 +770,42 @@ public class EmitParser extends Parser {
         }
 
     }
-    /*
-     public void parse(Document node) {
-     codes.add(OpCode.create(OpCodes.DOM));
-     for (Node sub : node.getNodes()) {
-     sub.parse();
-     }
-     }
 
-     public void parse(If node) {
-
-     OpCode begin = OpCode.create(OpCodes.BEGIN_BLOCK);
-     OpCode end = OpCode.create(OpCodes.END_BLOCK, begin);
-     OpCode label = OpCode.create(OpCodes.NOP);
-     codes.add(begin);
-     this.parseExpr(node.getSource(), 0);
-     codes.add(OpCode.create(OpCodes.CONDITION_JUMP, label, end));
-     codes.add(label);
-     for (Node sub : node.getNodes()) {
-     sub.parse();
-     }
-
-     codes.add(end);
-     }
-
-     public void parse(Plain node) {
-     codes.add(OpCode.create(OpCodes.PRINT_STR, node.getSource()));
-     }
-
-     public void parse(Print node) {
-     this.parseExpr(node.getSource(), 0);
-     codes.add(OpCode.create(OpCodes.PRINT, node.getSource()));
-     }
-     */
-
-    public void compile(OutputStream output) throws IOException {
-
-        this.parse();
-
-        for (OpCode code : codes) {
+    private void setAddress(OpCode code) {
+        if (code instanceof Tuple) {
+            for (OpCode sub : (Tuple) code) {
+                setAddress(sub);
+            }
+        } else {
             code.setAdress(this.newAddress());
-        }
-
-        for (OpCode code : codes) {
-            this.compileT(code, output);
         }
     }
 
-    /*private void compileTest(OpCode code, OutputStream output) throws IOException {
-     //output.write(Utility.toBytes(code.getAddress()));
-     String s = code.getAddress() + "";
-     if (OpCodes.BEGIN_BLOCK.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.CONDITION_JUMP.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getElement(0).getAddress();
-     s += code.getElement(1).getAddress();
-     } else if (OpCodes.DOM.equals(code.getCode())) {
-     s = "MANO-IL010101";
-     } else if (OpCodes.END_BLOCK.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getElement(0).getAddress();
-     } else if (OpCodes.JUMP.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getElement(0).getAddress();
-     } else if (OpCodes.LOAD_DECIMAL.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getString();
-     } else if (OpCodes.LOAD_EVN_ARG.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getString().length();//bytes
-     s += code.getString();//bytes
-     } else if (OpCodes.LOAD_INTEGER.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getString();
-     } else if (OpCodes.LOAD_PROPERTY.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getString().length();//bytes
-     s += code.getString();//bytes
-     } else if (OpCodes.LOAD_METHOD.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getString().length();//bytes
-     s += code.getString();//bytes
-     } else if (OpCodes.LOAD_STR.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getString().length();//bytes
-     s += code.getString();//bytes
-     } else if (OpCodes.CALL.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.INDEXER.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.NOP.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_ADD.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_AND.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_DIV.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_EQ.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_GT.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_GTE.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_LT.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_LTE.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_MOD.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_MUL.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_NEQ.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_NOT.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_OR.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.OP_SUB.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.PRINT.equals(code.getCode())) {
-     s += code.getCode();
-     } else if (OpCodes.PRINT_STR.equals(code.getCode())) {
-     s += code.getCode();
-     s += code.getString().length();//bytes
-     s += code.getString();//bytes
-     }
-     output.write(s.getBytes());
-     output.write("\r\n".getBytes());
-     }*/
+    public void compile(OutputStream output) throws IOException {
+
+        if (parent != null) {
+            parent.compile(output);
+            return;
+        }
+
+        //this.parse();
+        for (OpCode code : codes) {
+            setAddress(code);
+        }
+
+        for (OpCode code : codes) {
+            this.compile(code, output);
+        }
+    }
+
     private void compile(OpCode code, OutputStream output) throws IOException {
+        if (code instanceof Tuple) {
+            for (OpCode sub : (Tuple) code) {
+                compile(sub, output);
+            }
+            return;
+        }
+
         if (!OpCodes.DOM.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getAddress()));
             output.write(Utility.toBytes(code.getCode().getValue()));
@@ -723,18 +814,20 @@ public class EmitParser extends Parser {
         } else if (OpCodes.CONDITION_JUMP.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getElement(0).getAddress()));
             output.write(Utility.toBytes(code.getElement(1).getAddress()));
+        } else if (OpCodes.JUMP.equals(code.getCode()) || OpCodes.JUMP_FLASE.equals(code.getCode()) || OpCodes.JUMP_TRUE.equals(code.getCode())) {
+            output.write(Utility.toBytes(code.getElement(0).getAddress()));
         } else if (OpCodes.DOM.equals(code.getCode())) {
             output.write("OTPL-IL".getBytes());//id7
             output.write(Utility.toBytes((short) 11));//ver
-            output.write((int) ((byte) 1));//utf-8
+            output.write(0x1);//utf-8
             output.write(Utility.toBytes(0L));//file mod time8
             output.write(Utility.toBytes(0L));//gen time8
         } else if (OpCodes.END_BLOCK.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getElement(0).getAddress()));
         } else if (OpCodes.EXIT.equals(code.getCode())) {
 
-        } else if (OpCodes.JUMP.equals(code.getCode())) {
-            output.write(Utility.toBytes(code.getElement(0).getAddress()));
+        } else if (OpCodes.LOAD_ITERATOR.equals(code.getCode())) {
+
         } else if (OpCodes.LOAD_NUMBER.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getNumber()));
         } else if (OpCodes.LOAD_VAR.equals(code.getCode())) {
@@ -783,6 +876,8 @@ public class EmitParser extends Parser {
             byte[] bytes = code.getString().getBytes();
             output.write(Utility.toBytes(bytes.length));
             output.write(bytes);
+        } else {
+            this.reportError("未实现命令");
         }
     }
 
@@ -790,18 +885,21 @@ public class EmitParser extends Parser {
         String s = "";
         if (!OpCodes.DOM.equals(code.getCode())) {
             s += code.getAddress() + " ";
-            s += code.getCode().getValue();
+            s += code.getCode().getName() + " ";
         }
         if (OpCodes.BEGIN_BLOCK.equals(code.getCode())) {
         } else if (OpCodes.CONDITION_JUMP.equals(code.getCode())) {
             s += code.getElement(0).getAddress() + " ";
-            s += code.getElement(0).getAddress() + " ";
+            s += code.getElement(1).getAddress() + " ";
         } else if (OpCodes.DOM.equals(code.getCode())) {
             s += "OTPL-IL";
             s += (short) 11;
+            s += " ";
             s += (byte) 11;
-            s += 0L;
-            s += 0L;
+            s += " ";
+            s += mano.util.DateTime.now() + " ";
+            s += mano.util.DateTime.now() + " ";
+            s += this.addr + " ";
         } else if (OpCodes.END_BLOCK.equals(code.getCode())) {
             s += code.getElement(0).getAddress() + " ";
         } else if (OpCodes.EXIT.equals(code.getCode())) {
@@ -810,7 +908,6 @@ public class EmitParser extends Parser {
             s += code.getElement(0).getAddress() + " ";
         } else if (OpCodes.LOAD_NUMBER.equals(code.getCode())) {
             s += code.getNumber() + " ";
-            output.write(Utility.toBytes(code.getNumber()));
         } else if (OpCodes.LOAD_VAR.equals(code.getCode())) {
             s += code.getString().getBytes().length + " ";
             s += code.getString() + " ";
@@ -852,6 +949,7 @@ public class EmitParser extends Parser {
             s += code.getString().getBytes().length + " ";
             s += code.getString() + " ";
         }
+        s += "\r\n";
         output.write(s.getBytes());
     }
 }

@@ -38,7 +38,8 @@ public abstract class Node {
             LEXB_BLOCK = 22,
             LEXS_ENDBLOCK = 23,
             LEXS_BODY = 24,
-            LEXS_SET = 25;
+            LEXS_SET = 25,
+            LEXS_PLACE = 26;
 
     private String nodeName;
     private String fileName;
@@ -47,7 +48,7 @@ public abstract class Node {
     private int indent = 0;
     private int nodeType;
     public static char INDENT_CHAR = ' ';
-    protected final String source;
+    protected String source;
     protected final Parser parser;
     protected Node prevNode;
     protected Node nextNode;

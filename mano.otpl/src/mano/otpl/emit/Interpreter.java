@@ -12,12 +12,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.SoftReference;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -46,12 +48,17 @@ public class Interpreter {
     boolean running = true;
     Stack<Object> stack;
     Map<String, Object> args;
-    
+    OutputStream output;
+    static final String TRUE = "[!--SYS-TYPE--$true]";
+    static final String FLASE = "[!--SYS-TYPE--$false]";
+    static final String NULL = "[!--SYS-TYPE--$null]";
 
-    public static void mains(String[] args) {
-        EmitParser.main(args);
+    public static void main(String[] args) {
+        EmitParser.mains(args);
         Interpreter interpreter = new Interpreter();
         try {
+            interpreter.init();
+            interpreter.setOut(System.out);
             interpreter.exec("E:\\repositories\\java\\mano\\mano.server\\server\\tmp\\4c0dbce1.il");
         } catch (IOException ex) {
             Logger.getLogger(Interpreter.class.getName()).log(Level.SEVERE, null, ex);
@@ -69,8 +76,15 @@ public class Interpreter {
         return a + b;
     }
 
-    public void exec(String filename) throws FileNotFoundException, IOException {
-        stream = new FileInputStream(filename);
+    public void set(String name, Object val) {
+        args.put(name, val);
+    }
+
+    public void setOut(OutputStream stream) {
+        this.output = stream;
+    }
+
+    public void init() {
         buf = new byte[26];
         cmds = new LinkedMap<>();
         stack = new Stack<>();
@@ -78,6 +92,12 @@ public class Interpreter {
 
         args.put("title", "OPTL-IL TEST");
         args.put("obj", this);
+        args.put("list", new String[]{"abx", "fttf"});
+    }
+
+    public void exec(String filename) throws FileNotFoundException, IOException {
+        stream = new FileInputStream(filename);
+
         this.readHeader();
 
         if (current == null) {
@@ -168,7 +188,7 @@ public class Interpreter {
                     .setAdress(addr);
         } else if (OpCodes.EXIT.equals(op)) {
             code = OpCode.create(op).setAdress(addr);
-        } else if (OpCodes.JUMP.equals(op)) {
+        } else if (OpCodes.JUMP.equals(op) || OpCodes.JUMP_FLASE.equals(op) || OpCodes.JUMP_TRUE.equals(op)) {
             len = stream.read(buf, 0, 8);
             if (len != 8) {
                 error("输入错误。");
@@ -226,6 +246,8 @@ public class Interpreter {
                 error("输入错误。");
             }
             code = OpCode.create(op, Utility.toInt(buf, 0)).setAdress(addr);
+        } else if (OpCodes.LOAD_ITERATOR.equals(op)) {
+            code = OpCode.create(op).setAdress(addr);
         } else if (OpCodes.INDEXER.equals(op)) {
             code = OpCode.create(op).setAdress(addr);
         } else if (OpCodes.NOP.equals(op)) {
@@ -267,6 +289,7 @@ public class Interpreter {
             }
             code = OpCode.create(op, getString(Utility.toInt(buf, 0)))
                     .setAdress(addr);
+
         } else if (OpCodes.SET_VAR.equals(op)) {
             len = stream.read(buf, 0, 4);
             if (len != 4) {
@@ -316,6 +339,14 @@ public class Interpreter {
             } else {
                 jump(code.getElement(1).getAddress());
             }
+        } else if (OpCodes.JUMP_FLASE.equals(code.getCode())) {
+            if (!toBoolean(stack.pop())) {
+                jump(code.getElement(0).getAddress());
+            }
+        } else if (OpCodes.JUMP_TRUE.equals(code.getCode())) {
+            if (toBoolean(stack.pop())) {
+                jump(code.getElement(0).getAddress());
+            }
         } else if (OpCodes.DOM.equals(code.getCode())) {
             error("非法指令");
         } else if (OpCodes.END_BLOCK.equals(code.getCode())) {
@@ -341,13 +372,30 @@ public class Interpreter {
             String key = new String(code.getBytes());
             stack.push(getProperty(stack.pop(), key));
         } else if (OpCodes.LOAD_STR.equals(code.getCode())) {
-            stack.push(new String(code.getBytes()));
+            String str = new String(code.getBytes());
+            switch (str) {
+                case FLASE:
+                    stack.push(false);
+                    break;
+                case TRUE:
+                    stack.push(true);
+                    break;
+                case NULL:
+                    stack.push(null);
+                    break;
+                default:
+                    stack.push(str);
+                    break;
+            }
+
         } else if (OpCodes.CALL.equals(code.getCode())) {
             Object result = call(code.getInt());
             if (result != null && result instanceof Void) {
             } else {
                 stack.push(result);
             }
+        } else if (OpCodes.LOAD_ITERATOR.equals(code.getCode())) {
+            stack.push(this.toIterator(stack.pop()));
         } else if (OpCodes.INDEXER.equals(code.getCode())) {
             Object result = call(code.getInt());
             if (result != null && result instanceof Void) {
@@ -420,7 +468,12 @@ public class Interpreter {
     }
 
     private void printStr(byte[] bytes) {
-        System.out.print(new String(bytes));
+        try {
+            output.write(bytes);
+        } catch (IOException ex) {
+            throw new java.lang.RuntimeException(ex);
+        }
+        //System.out.print(new String(bytes));
     }
 
     private boolean toBoolean(Object obj) {
@@ -447,6 +500,7 @@ public class Interpreter {
                     error("对象存在多个同名成员函数，" + name);
                 }
                 result = m;
+                break;//TODO:对象存在多个同名成员函数?????
             }
         }
 
@@ -529,8 +583,12 @@ public class Interpreter {
             call.setAccessible(true);
             try {
                 return call.invoke(host, params);
+            } catch (InvocationTargetException ex) {
+                throw new java.lang.RuntimeException(ex.getTargetException());
+                //error("调用函数失败，" + ex.getMessage() + "。" + call.getName());
             } catch (Exception ex) {
-                error("调用函数失败，" + ex.getMessage() + "。" + call.getName());
+                throw new java.lang.RuntimeException(ex);
+                //error("调用函数失败，" + ex.getMessage() + "。" + call.getName());
             }
         } else if (member instanceof Field) {
             Field field = (Field) member;
@@ -596,6 +654,37 @@ public class Interpreter {
         error("数据类型不匹配，不能作数值运算。");
 
         return false;
+    }
+
+    private Object toIterator(Object obj) {
+        if (obj == null) {
+            obj = new Object[0];
+        }
+
+        if (obj instanceof Iterable) {
+            return ((Iterable) obj).iterator();
+        } else if (obj instanceof Map) {
+            return ((Iterable) ((Map) obj).entrySet()).iterator();
+        } else if (obj.getClass().isArray()) {
+            final Object array = obj;
+            final int size = Array.getLength(obj);
+            return new Iterator() {
+                int current = 0;
+
+                @Override
+                public boolean hasNext() {
+                    return current < size;
+                }
+
+                @Override
+                public Object next() {
+                    return Array.get(array, current++);
+                }
+
+            };
+        }
+        this.error("give object is a non-terable object." + obj.getClass());
+        return obj;
     }
 
     static class Number {

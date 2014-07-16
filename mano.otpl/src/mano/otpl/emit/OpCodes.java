@@ -17,7 +17,7 @@ public enum OpCodes {
     /**
      * 什么都不做。
      */
-    NOP(0, "op"),
+    NOP(0, "nop"),
     /**
      * IL文件的头信息。
      * <p>
@@ -211,8 +211,37 @@ public enum OpCodes {
      * <p>
      * IL原形：地址(8)操作(2)，共 10 字节。</p>
      */
-    //@Deprecated
-    OP_OPPOSITE(32, "opp"),;
+    @Deprecated
+    OP_OPPOSITE(32, "opp"),
+    /**
+     * 从栈顶弹出一个对象,转换为迭代器并将结果压入栈顶。
+     * <p>
+     * IL原形：地址(8)操作(2)，共 10 字节。</p>
+     */
+    LOAD_ITERATOR(33, "ldcur"),
+    /**
+     * 从栈顶弹出一个对象,如果该值为true则跳到指定地址。
+     * <p>
+     * IL原形：地址(8)操作(2)目标地址(8)，共 18 字节。</p>
+     */
+    JUMP_TRUE(34, "jmp_t"),
+    /**
+     * 从栈顶弹出一个对象,如果该值为flast则跳到指定地址。
+     * <p>
+     * IL原形：地址(8)操作(2)目标地址(8)，共 18 字节。</p>
+     */
+    JUMP_FLASE(35, "jmp_f"),
+    /**
+     * 从栈顶弹出一个对象。
+     * <p>
+     * IL原形：地址(8)操作(2)，共 10 字节。</p>
+     */
+    OP_POP(36, "pop"),/**
+     * 包含一个外部IL文件并执行。
+     * <p>
+     * IL原形：地址(8)操作(2)字符串长度(4)数据(n)，共 14+n 字节。</p>
+     */
+    INCLUDE(37, "inc"),;
 
     private final short value;
     private final String name;
@@ -220,6 +249,10 @@ public enum OpCodes {
     private OpCodes(int val, String op) {
         value = (short) val;
         name = op;
+    }
+
+    public String getName() {
+        return name;
     }
 
     public short getValue() {

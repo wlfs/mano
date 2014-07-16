@@ -79,18 +79,18 @@ public class Block extends Node {
                 last = this.getNodes().getLast();
             } catch (NoSuchElementException e) {
             }
-            if (last != null && last instanceof Plain) {
-                this.getNodes().removeLast();
-                node = new Plain(node.parser, node.getName(), last.source + node.source);
+            if (last != null && last.getNodeType() == Node.LEXS_PLAIN) {
+                last = this.getNodes().removeLast();
+                last.source += node.source;
+                node = last;
             }
         }
-        if(this.closed){
+        if (this.closed) {
             node.setParent(this.getParent()); //设置父级
             node.setPrevNode(this);
             this.getParent().getNodes().add(node);
-            return (Block)node;
-        }
-        else{
+            return (Block) node;
+        } else {
             node.setParent(this); //设置父级
             if (!this.getNodes().isEmpty()) { //设置上个节点
                 node.setPrevNode(this.getNodes().getLast());

@@ -68,6 +68,7 @@ public abstract class Parser {
             line++;
             lines.put(line, s);
             this.findLine(s, 0);
+            parsePlian("\r\n");////todo: 补足一个回车，因为分析时的消耗
         }
     }
 
@@ -76,6 +77,7 @@ public abstract class Parser {
             return;
         }
         this.findDelimiter(line, index);
+
     }
 
     private void findDelimiter(String source, int index) {
@@ -100,7 +102,7 @@ public abstract class Parser {
         } else {
             parsePlian(source.substring(index));
         }
-        parsePlian("\r\n");////todo: 补足一个回车，因为分析时的消耗
+
     }
 
     protected void parsePlian(String source) {
@@ -183,10 +185,13 @@ public abstract class Parser {
     }
 
     protected int assertKeyword(String key, String source) {
+        return assertKeyword(key, source, 0);
+    }
+
+    protected int assertKeyword(String key, String source, int index) {
         if (key == null || key.length() == 0 || source == null || source.length() == 0) {
             return -1;
         }
-        int index = 0;
         boolean tmp = false;
         int total = source.length();
         for (; index < total; index++) {
@@ -209,6 +214,8 @@ public abstract class Parser {
                 } else {
                     index++;
                 }
+            } else {
+                return -1;
             }
         }
         if (tmp) {
@@ -231,14 +238,27 @@ public abstract class Parser {
         } else if ((index = assertKeyword("/if", source)) > -1) { //end if
             Node node = End.create(this, Node.LEXS_ENDIF);
             dom.append(node);
-        }else if ((index = assertKeyword("/for", source)) > -1) { //end if
+        } else if ((index = assertKeyword("/for", source)) > -1) { //end if
             Node node = End.create(this, Node.LEXS_ENDFOR);
             dom.append(node);
-        }else if ((index = assertKeyword("/each", source)) > -1) { //end if
+        } else if ((index = assertKeyword("/each", source)) > -1) { //end if
             Node node = End.create(this, Node.LEXS_ENDEACH);
             dom.append(node);
-        }else if ((index = assertKeyword("/while", source)) > -1) { //end if
+        } else if ((index = assertKeyword("/while", source)) > -1) { //end if
             Node node = End.create(this, Node.LEXS_ENDWHILE);
+            dom.append(node);
+        } else if ((index = assertKeyword("/block", source)) > -1) { //end if
+            Node node = End.create(this, Node.LEXS_ENDBLOCK);
+            dom.append(node);
+        } else if ((index = assertKeyword("block", source)) > -1) { //end if
+            if ((index = assertKeyword(":", source,index)) < 0) {
+                this.reportError("语法错误");
+            }
+            int found = this.parseIdentifier(source, index);
+            if (found < 0) {
+                this.reportError("非法的标识符");
+            }
+            Node node = Block.create(this, Node.LEXB_BLOCK, source.substring(index, found), Node.LEXS_ENDBLOCK);
             dom.append(node);
         } else if ((index = assertKeyword("elif", source)) > -1) { //end if
             Node node = Block.create(this, Node.LEXB_ELIF, source.substring(index), Node.LEXB_ELIF, Node.LEXB_ELSE, Node.LEXS_ENDIF);
@@ -255,38 +275,69 @@ public abstract class Parser {
             //Node node = new If(this,"if", source.substring(index));
             Node node = Block.create(this, Node.LEXB_IF, source.substring(index), Node.LEXB_ELIF, Node.LEXB_ELSE, Node.LEXS_ENDIF);
             dom.append(node);
-        }else if ((index = assertKeyword("for", source)) > -1) { //语句
-            Node node = Block.create(this, Node.LEXB_FOR, source.substring(index), Node.LEXB_FOR, Node.LEXB_ELSE);
+        } else if ((index = assertKeyword("for", source)) > -1) { //语句
+            Node node = Block.create(this, Node.LEXB_FOR, source.substring(index), Node.LEXS_ENDFOR, Node.LEXB_ELSE);
             //node.PName=id;
             dom.append(node);
-        }else if ((index = assertKeyword("each", source)) > -1) { //语句
-            Node node = Block.create(this, Node.LEXB_EACH, source.substring(index), Node.LEXB_FOR, Node.LEXB_ELSE);
+        } else if ((index = assertKeyword("each", source)) > -1) { //语句
+            Node node = Block.create(this, Node.LEXB_EACH, source.substring(index), Node.LEXS_ENDEACH, Node.LEXB_ELSE);
             dom.append(node);
-        }else if ((index = assertKeyword("while", source)) > -1) { //语句
-            Node node = Block.create(this, Node.LEXB_WHILE, source.substring(index), Node.LEXB_FOR, Node.LEXB_ELSE);
+        } else if ((index = assertKeyword("while", source)) > -1) { //语句
+            Node node = Block.create(this, Node.LEXB_WHILE, source.substring(index), Node.LEXS_ENDWHILE, Node.LEXB_ELSE);
             dom.append(node);
-        }else if ((index = assertKeyword("break", source)) > -1) { //语句
+        } else if ((index = assertKeyword("break", source)) > -1) { //语句
             Node node = Span.create(this, Node.LEXS_BREAK, source.substring(index));
             dom.append(node);
-        }else if ((index = assertKeyword("continue", source)) > -1) { //语句
+        } else if ((index = assertKeyword("continue", source)) > -1) { //语句
             Node node = Span.create(this, Node.LEXS_BREAK, source.substring(index));
+            dom.append(node);
+        } else if ((index = assertKeyword("layout", source)) > -1) { //语句
+            if (dom.Layout != null) {
+                this.reportError("不能存在多个 layout 标签.");
+            }
+            int tmp = assertKeyword("'", source, index);
+            if (tmp < 0) {
+                this.reportError("未设置 layout 路径.");
+            }
+            //source=source.substring(tmp);
+            int end = this.parseRange(source, tmp, "'", "'");
+            if (tmp < 0) {
+                this.reportError("未设置 layout 路径.");
+            }
+
+            Node node = Span.create(this, Node.LEXS_LAYOUT, source.substring(tmp, end));
+            dom.Layout = node;
+        } else if ((index = assertKeyword("body", source)) > -1) { //语句
+            if (dom.Body != null) {
+                this.reportError("不能存在多个 body 标签.");
+            }
+
+            Node node = Span.create(this, Node.LEXS_BODY, source.substring(index));
+            dom.Body = node;
+            dom.append(node);
+        } else if ((index = assertKeyword("include", source)) > -1) { //语句
+
+            int tmp = assertKeyword("'", source, index);
+            if (tmp < 0) {
+                this.reportError("未设置 include 路径.");
+            }
+            //source=source.substring(tmp);
+            int end = this.parseRange(source, tmp, "'", "'");
+            if (tmp < 0) {
+                this.reportError("未设置 include 路径.");
+            }
+
+            Node node = Span.create(this, Node.LEXS_INCLUDE, source.substring(tmp, end));
+            dom.append(node);
+        } else if ((index = assertKeyword("place", source)) > -1) { //语句
+            Node node = Span.create(this, Node.LEXS_PLACE, source.substring(index));
             dom.append(node);
         } else {
             //String code;
             Node node;
             if (source.startsWith("@")) {
-                /*code = this.parseExpr(s.substring(1), 0);//call
-                 if (code == null || "".equals(code.trim()) || !code.endsWith(")")) {
-                 this.reportError("syntax error,illegal markup. look like as a function ");
-                 }*/
-                //node = new RawCode(this,"rawcode", source.substring(1));
                 node = Span.create(this, Node.LEXS_RAW, source);
             } else {
-                /*code = this.parseExpr(s, 0);
-                 if (code == null || "".equals(code.trim())) {
-                 this.reportError("syntax error,illegal markup. look like as a if statement but dont found cod");
-                 }*/
-                //node = new Print(this,"print", source);
                 node = Span.create(this, Node.LEXS_PRINT, source);
             }
             dom.append(node);

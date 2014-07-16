@@ -22,7 +22,7 @@ public class OpCode {
     private long longArg;
     private int intArg;
     private byte[] bytesArg;
-    private OpCode() {
+    protected OpCode() {
 
     }
 
