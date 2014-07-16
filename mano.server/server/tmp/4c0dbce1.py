@@ -1,0 +1,16 @@
+print '<!DOCTYPE html>'
+print '<html>'
+print '    <head>'
+print '        <title>'
+print title
+print '</title>'
+print '        <meta charset="UTF-8">'
+print '        <meta name="viewport" content="width=device-width, initial-scale=1.0">'
+print '    </head>'
+print '    <body>'
+print '        '
+if (5>4):
+    print '        hello world'
+    print '        '
+print '    </body>'
+print '</html>'

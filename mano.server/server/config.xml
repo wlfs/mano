@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <services>
+        <service name="http.service" type="mano.http.HttpService,mano.wrt">
+            <params>
+                <param name="config:file">./config.xml</param>
+                
+                <param name="connection:http:address">0.0.0.0:9999</param>
+                <param name="connection:http:disabled">false</param>
+                
+                <param name="connection:https:address">0.0.0.0:443</param>
+                <param name="connection:https:disabled">true</param>
+                <param name="connection:https:ssl">55566</param>
+                <param name="connection:https:ssl_cert">path</param>
+            </params>
+        </service>
+    </services>
+	
+    <http.service user="www-user" transferBufferSize="512b" minBufferSize="4k" maxBufferSize="64k" maxConnections="1000" threadPoolSize="1000">
+        <machine>
+            <request disabledEntityBody="false" maxEntityBodySize="40m" maxPostFileSize="4m" />
+            <document>
+                <add value="index.mvc"/>
+                <add value="index.html"/>
+            </document>
+            <modules>
+                <add name="static_file_module" type="mano.web.StaticFileModule,mano.wrt">
+                    <params>
+                        <!--http://www.w3school.com.cn/media/media_mimeref.asp-->
+                        <param name="ext:html">text/html</param>
+                        <param name="ext:htm">text/html</param>
+                        <param name="ext:jpg">image/jpeg</param>
+                        <param name="fcgi:server1:pass">192.168.1.10:9000</param>
+                        <param name="fcgi:server1:weight">1</param>
+                    </params>
+                </add>
+                <add name="url_route_module" type="mano.web.UrlRouteModule,mano.wrt"></add>
+            </modules>
+        </machine>
+        
+        <web.applications>
+            <include path="xxx/web.xml"/>
+            <application name="default application" host="*" path="./wwwroot" vpath="/" type="mano.web.WebApplication,mano">
+                <settings>
+                    <add key="db:driver:myconn" value="mysql"/>
+                    <add key="db:strings:myconn" value="jdbc:mysql://localhost/myDB"/>
+                </settings>
+                <server>
+                    <request disabledEntityBody="false" maxEntityBodySize="40m" maxPostFileSize="4m" />
+                    <document>
+                        <add value="index.mvc"/>
+                        <add value="index.html"/>
+                    </document>
+                    <routing defaultController="home,app" defaultAction="index">
+                        <ignored>
+                            <add vpath="/dir/"/>
+                            <add vpath="/bin/"/>
+                            <add vpath="/data/"/>
+                        </ignored>
+                        <controllers autoDectect="true">
+                            <file name="packge.jar"/>
+                        </controllers>
+                    </routing>
+                </server>
+            </application>
+        </web.applications>
+        
+        
+    </http.service>
+	
+</configuration>
