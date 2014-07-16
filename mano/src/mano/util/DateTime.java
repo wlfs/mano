@@ -62,6 +62,10 @@ public final class DateTime {
         //getInstace()._formatProvider.parse("").getTime()
         return format(pattern, Calendar.getInstance(getInstace()._timeZone, getInstace()._locale).getTime());
     }
+    
+    public static long now(){
+        return Calendar.getInstance(getInstace()._timeZone, getInstace()._locale).getTime().getTime();
+    }
 
     public static Date parse(String source, String pattern) throws ParseException {
         getInstace()._formatProvider.applyPattern(pattern);

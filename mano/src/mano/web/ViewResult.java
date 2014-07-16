@@ -22,7 +22,7 @@ public class ViewResult implements ActionResult {
         if(engine==null){
             return;//throws error
         }
-        tpl=engine.compile("tmp_path",tpl);
+        tpl=engine.compile("E:\\repositories\\java\\mano\\mano.server\\server\\tmp\\",tpl);
         
         engine.render(service,tpl);
         

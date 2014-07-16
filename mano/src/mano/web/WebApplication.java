@@ -182,7 +182,7 @@ public class WebApplication {
     public ViewEngine getViewEngine() {
         if (viewEngine == null) {
             try {
-                viewEngine=(ViewEngine)this.loader.newInstance("mano.otpl.PyViewEngine,mano.otpl");
+                viewEngine=(ViewEngine)this.loader.newInstance("mano.otpl.OtplViewEngine,mano.otpl");
             } catch (InstantiationException ex) {
                 Logger.getLogger(WebApplication.class.getName()).log(Level.SEVERE, null, ex);
             } catch (ClassNotFoundException ex) {
