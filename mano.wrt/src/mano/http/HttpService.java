@@ -178,11 +178,9 @@ public class HttpService extends Service {
         if (info != null) {
             WebApplication app = info.getInstance();
             if (app != null) {
-                String path = info.path;
-                if (path.startsWith("./") || path.startsWith(".\\")) {
-                    path = this.bootstrapPath + path.substring(1);
-                } 
-                context._server = new HttpServerImpl(path, "/", "ManoServer/1.1");
+
+                context._server = new HttpServerImpl(app.getBasedir(), "/", "ManoServer/1.1");
+
                 context._application = app;
                 app.init(context);
                 return true;
@@ -246,10 +244,10 @@ public class HttpService extends Service {
                 conn.bind(100);
                 conn.accept(_factory.get());
 
-                this.logger().infoFormat("listening for:%s", info.address.toString());
+                this.getLogger().infoFormat("listening for:%s", info.address.toString());
             }
         } catch (IOException e) {
-            this.logger().error("mano.http.HttpService.run", e);
+            this.getLogger().error("mano.http.HttpService.run", e);
         }
     }
 
@@ -286,10 +284,10 @@ public class HttpService extends Service {
                 accept().setOption(StandardSocketOptions.SO_REUSEADDR, true);
                 accept().setOption(StandardSocketOptions.SO_KEEPALIVE, false);
             } catch (IOException e) {
-                service.logger().error(HttpTask.class.getName(), e);
+                service.getLogger().error(HttpTask.class.getName(), e);
             }
             try {
-                service.logger().trace("connected:" + this.accept().getRemoteAddress());
+                service.getLogger().trace("connected:" + this.accept().getRemoteAddress());
             } catch (IOException ignored) {
             }
 

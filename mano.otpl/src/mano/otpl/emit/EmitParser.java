@@ -780,6 +780,18 @@ public class EmitParser extends Parser {
             code.setAdress(this.newAddress());
         }
     }
+    
+    public void compile(String source,String target) throws IOException {
+        java.io.FileInputStream in = new java.io.FileInputStream(source);
+        reader = new java.io.BufferedReader(new java.io.InputStreamReader(in));
+        filename = source;
+        this.parse();
+        in.close();
+        
+        java.io.FileOutputStream out = new java.io.FileOutputStream(target);
+        this.compile(out);
+        out.close();
+    }
 
     public void compile(OutputStream output) throws IOException {
 

@@ -19,17 +19,8 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD})
-public @interface Action {
-    /**
-     * 获取或设置请求的URL映射。
-     * 如：/index/{var}/{var?}
-     * @return 
-     */
-    String value() default "";
-    /**
-     * 获取或设置用于请求的HTTP限定方法。
-     * @return 
-     */
-    int method() default 0;
+@Target({ElementType.PARAMETER})
+public @interface RequestParam {
+
+    String value();
 }

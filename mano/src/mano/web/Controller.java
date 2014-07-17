@@ -12,51 +12,47 @@ import mano.http.HttpRequest;
 import mano.http.HttpResponse;
 
 /**
- * u.diosay.com=host ok
- * w.diosay.com=host na
+ * u.diosay.com=host ok w.diosay.com=host na
+ *
  * @author jun <jun@diosay.com>
  */
 @Module("{host=token}/home/{lang}")
 public abstract class Controller {
-    protected final HttpResponse response;
-    protected final HttpRequest request;
-    protected final HttpContext context;
-    RouteService service;
-    public Controller(HttpContext context){
-        if(context==null){
-            throw new NullPointerException();
-        }
-        this.context=context;
-        this.request=context.getRequest();
-        this.response=context.getResponse();
-    }
+
+    protected HttpResponse response;
+    protected HttpRequest request;
+    protected HttpContext context;
+    private RequestService service;
+    /*public Controller(HttpContext context){
+     if(context==null){
+     throw new NullPointerException();
+     }
+     this.context=context;
+     this.request=context.getRequest();
+     this.response=context.getResponse();
+     }*/
     
-    @Action(value="",method=9)
-    void view(String path){
-        
-        service.set("", path);
-        service.setResult(null);
-        
+    private final void setService(RequestService rs){
+        service=rs;
     }
-    //actionMapping("/index/{name?}/{value?}",POST)
-    void view(String action,String controller,String app){
-        //host/app/controller/action/args?query
-        //return newindex("index")
-        
+
+    protected void view() {
+        service.setResult(new ViewResult());
     }
-    
-    class TestView implements View{
-        
-        @Override
-        public void execute(RouteService service) {
-            
-            service.getContext().getResponse().write("<html>", "");
-            if(service.get("")==null){
-                
-            }
-            service.getContext().getResponse().write("</html>", "");
-        }
-        
+
+    protected void view(String action) {
+        service.setAction(action);
+        service.setResult(new ViewResult());
     }
-    
+
+    public void view(String action, String controller) {
+        service.setAction(action);
+        service.setController(controller);
+        service.setResult(new ViewResult());
+    }
+
+    public void template(String path) {
+        service.setResult(new ViewResult());
+    }
+
 }

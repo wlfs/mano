@@ -27,6 +27,7 @@ import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import mano.otpl.OtplViewEngine;
 import mano.util.LinkedMap;
 import mano.util.LinkedMap.LinkedNode;
 import mano.util.Utility;
@@ -46,53 +47,50 @@ public class Interpreter {
     LinkedMap<Long, OpCode> cmds;
     LinkedNode<Long, OpCode> current;
     boolean running = true;
-    Stack<Object> stack;
-    Map<String, Object> args;
+    //Stack<Object> stack;
+    //Map<String, Object> args;
     OutputStream output;
     static final String TRUE = "[!--SYS-TYPE--$true]";
     static final String FLASE = "[!--SYS-TYPE--$false]";
     static final String NULL = "[!--SYS-TYPE--$null]";
+    OtplViewEngine.OutProxy environment;
 
     public static void main(String[] args) {
         EmitParser.mains(args);
         Interpreter interpreter = new Interpreter();
         try {
-            interpreter.init();
+            interpreter.init(null);
             interpreter.setOut(System.out);
             interpreter.exec("E:\\repositories\\java\\mano\\mano.server\\server\\tmp\\4c0dbce1.il");
         } catch (IOException ex) {
             Logger.getLogger(Interpreter.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
+    /*
+     public String field = "i am is a field";
+     public String oprop = "i am is a auto property";
 
-    public String field = "i am is a field";
-    public String oprop = "i am is a auto property";
+     public String getProp() {
+     return "i am is a property(getProp())";
+     }
 
-    public String getProp() {
-        return "i am is a property(getProp())";
-    }
-
-    public int addTest(int a, int b) {
-        return a + b;
-    }
+     public int addTest(int a, int b) {
+     return a + b;
+     }*/
 
     public void set(String name, Object val) {
-        args.put(name, val);
+        //args.put(name, val);
     }
 
     public void setOut(OutputStream stream) {
         this.output = stream;
     }
 
-    public void init() {
+    public void init(OtplViewEngine.OutProxy env) {
         buf = new byte[26];
         cmds = new LinkedMap<>();
-        stack = new Stack<>();
-        args = new HashMap<>();
+        environment = env;
 
-        args.put("title", "OPTL-IL TEST");
-        args.put("obj", this);
-        args.put("list", new String[]{"abx", "fttf"});
     }
 
     public void exec(String filename) throws FileNotFoundException, IOException {
@@ -334,17 +332,17 @@ public class Interpreter {
         if (OpCodes.BEGIN_BLOCK.equals(code.getCode())) {
             next();
         } else if (OpCodes.CONDITION_JUMP.equals(code.getCode())) {
-            if (toBoolean(stack.pop())) {
+            if (toBoolean(environment.stack.pop())) {
                 jump(code.getElement(0).getAddress());
             } else {
                 jump(code.getElement(1).getAddress());
             }
         } else if (OpCodes.JUMP_FLASE.equals(code.getCode())) {
-            if (!toBoolean(stack.pop())) {
+            if (!toBoolean(environment.stack.pop())) {
                 jump(code.getElement(0).getAddress());
             }
         } else if (OpCodes.JUMP_TRUE.equals(code.getCode())) {
-            if (toBoolean(stack.pop())) {
+            if (toBoolean(environment.stack.pop())) {
                 jump(code.getElement(0).getAddress());
             }
         } else if (OpCodes.DOM.equals(code.getCode())) {
@@ -356,35 +354,35 @@ public class Interpreter {
         } else if (OpCodes.JUMP.equals(code.getCode())) {
             jump(code.getElement(0).getAddress());
         } else if (OpCodes.LOAD_NUMBER.equals(code.getCode())) {
-            stack.push(code.getNumber());
+            environment.stack.push(code.getNumber());
         } else if (OpCodes.LOAD_VAR.equals(code.getCode())) {
             String key = new String(code.getBytes());
-            if (key == null || "".equals(key) || !args.containsKey(key)) {
+            if (key == null || "".equals(key) || !environment.args.containsKey(key)) {
                 throw new java.lang.RuntimeException("变量未定义：" + key);
             }
-            stack.push(args.get(key));
+            environment.stack.push(environment.args.get(key));
         } else if (OpCodes.LOAD_INTEGER.equals(code.getCode())) {
-            stack.push(code.getLong());
+            environment.stack.push(code.getLong());
         } else if (OpCodes.LOAD_METHOD.equals(code.getCode())) {
             String key = new String(code.getBytes());
-            stack.push(getMethod(stack.pop(), key, code.getInt()));
+            environment.stack.push(getMethod(environment.stack.pop(), key, code.getInt()));
         } else if (OpCodes.LOAD_PROPERTY.equals(code.getCode())) {
             String key = new String(code.getBytes());
-            stack.push(getProperty(stack.pop(), key));
+            environment.stack.push(getProperty(environment.stack.pop(), key));
         } else if (OpCodes.LOAD_STR.equals(code.getCode())) {
             String str = new String(code.getBytes());
             switch (str) {
                 case FLASE:
-                    stack.push(false);
+                    environment.stack.push(false);
                     break;
                 case TRUE:
-                    stack.push(true);
+                    environment.stack.push(true);
                     break;
                 case NULL:
-                    stack.push(null);
+                    environment.stack.push(null);
                     break;
                 default:
-                    stack.push(str);
+                    environment.stack.push(str);
                     break;
             }
 
@@ -392,16 +390,16 @@ public class Interpreter {
             Object result = call(code.getInt());
             if (result != null && result instanceof Void) {
             } else {
-                stack.push(result);
+                environment.stack.push(result);
             }
         } else if (OpCodes.LOAD_ITERATOR.equals(code.getCode())) {
-            stack.push(this.toIterator(stack.pop()));
+            environment.stack.push(this.toIterator(environment.stack.pop()));
         } else if (OpCodes.INDEXER.equals(code.getCode())) {
             Object result = call(code.getInt());
             if (result != null && result instanceof Void) {
 
             } else {
-                stack.push(result);
+                environment.stack.push(result);
             }
         } else if (OpCodes.NOP.equals(code.getCode())) {
             //pass
@@ -414,52 +412,50 @@ public class Interpreter {
                 || OpCodes.OP_GTE.equals(code.getCode())
                 || OpCodes.OP_LT.equals(code.getCode())
                 || OpCodes.OP_LTE.equals(code.getCode())) {
-            Object b = stack.pop();
-            Object a = stack.pop();
-            stack.push(number_op(code.getCode(), a, b));
+            Object b = environment.stack.pop();
+            Object a = environment.stack.pop();
+            environment.stack.push(number_op(code.getCode(), a, b));
         } else if (OpCodes.OP_AND.equals(code.getCode()) || OpCodes.OP_OR.equals(code.getCode())) {
-            Object b = stack.pop();
-            Object a = stack.pop();
-            stack.push(logic_op(code.getCode(), a, b));
+            Object b = environment.stack.pop();
+            Object a = environment.stack.pop();
+            environment.stack.push(logic_op(code.getCode(), a, b));
         } else if (OpCodes.OP_EQ.equals(code.getCode())) {
-            Object b = stack.pop();
-            Object a = stack.pop();
+            Object b = environment.stack.pop();
+            Object a = environment.stack.pop();
             if (a != null) {
-                stack.push(a.equals(b));
+                environment.stack.push(a.equals(b));
             } else if (b != null) {
-                stack.push(b.equals(a));
+                environment.stack.push(b.equals(a));
             } else {
-                stack.push(a == b);
+                environment.stack.push(a == b);
             }
         } else if (OpCodes.OP_NEQ.equals(code.getCode())) {
-            Object b = stack.pop();
-            Object a = stack.pop();
+            Object b = environment.stack.pop();
+            Object a = environment.stack.pop();
             if (a != null) {
-                stack.push(!a.equals(b));
+                environment.stack.push(!a.equals(b));
             } else if (b != null) {
-                stack.push(!b.equals(a));
+                environment.stack.push(!b.equals(a));
             } else {
-                stack.push(a != b);
+                environment.stack.push(a != b);
             }
         } else if (OpCodes.OP_NOT.equals(code.getCode())) {
-            Object a = stack.pop();
+            Object a = environment.stack.pop();
             if (a != null) {
-                stack.push(!this.toBoolean(a));
+                environment.stack.push(!this.toBoolean(a));
             } else {
-                stack.push(true); //空表示“非”，反则为真？
+                environment.stack.push(true); //空表示“非”，反则为真？
             }
         } else if (OpCodes.PRINT.equals(code.getCode())) {
-            Object ob = stack.pop();
-            if (ob == null) {
-                int x = 8;
-            }
+            Object ob = environment.stack.pop();
+
             print(ob);
         } else if (OpCodes.PRINT_STR.equals(code.getCode())) {
             printStr(code.getBytes());
         } else if (OpCodes.SET_VAR.equals(code.getCode())) {
             String name = new String(code.getBytes());
-            Object val = stack.pop();
-            this.args.put(name, val);
+            Object val = environment.stack.pop();
+            environment.args.put(name, val);
         }
     }
 
@@ -508,7 +504,7 @@ public class Interpreter {
             error("成员方法未找到或不存在，" + name);
         } else {
             //stack.push(argCount);
-            stack.push(obj);//返回栈顶，供调用使用
+            environment.stack.push(obj);//返回栈顶，供调用使用
         }
         return result;
     }
@@ -556,7 +552,7 @@ public class Interpreter {
             error("属性未找到或不存在，" + name);
         } else {
             //stack.push(0);
-            stack.push(obj);//返回栈顶，供调用使用
+            environment.stack.push(obj);//返回栈顶，供调用使用
 
         }
         return result;
@@ -565,20 +561,20 @@ public class Interpreter {
     private Object call(int argCount) {
         Object[] params = new Object[argCount];
         for (int i = argCount - 1; i >= 0; i--) {
-            params[i] = stack.pop();
+            params[i] = environment.stack.pop();
         }
-        Object member = stack.pop();
+        Object member = environment.stack.pop();
         Object host = null;
         if (member instanceof Method) {
             Method call = (Method) member;
             //int len=call.getParameterCount();
 
             if (!Modifier.isStatic(call.getModifiers())) {
-                host = stack.pop();
+                host = environment.stack.pop();
             }
             Class<?>[] types = call.getParameterTypes();
             for (int i = 0; i < argCount; i++) {
-                params[i] = Number.cast(types[i], params[i]);
+                params[i] = Utility.cast(types[i], params[i]);
             }
             call.setAccessible(true);
             try {
@@ -593,7 +589,7 @@ public class Interpreter {
         } else if (member instanceof Field) {
             Field field = (Field) member;
             if (!Modifier.isStatic(field.getModifiers())) {
-                host = stack.pop();
+                host = environment.stack.pop();
             }
             try {
                 return field.get(host);
@@ -607,16 +603,16 @@ public class Interpreter {
 
     private Object number_op(OpCodes op, Object a, Object b) {
 
-        double av = Number.toDouble(a);
-        double bv = Number.toDouble(b);
+        double av = Utility.toDouble(a);
+        double bv = Utility.toDouble(b);
 
         if (OpCodes.OP_ADD.equals(op)) {
-            return Number.asNumber(Math.max(Number.geTypeCode(a.getClass()),
-                    Number.geTypeCode(b.getClass())),
+            return Utility.asNumber(Math.max(Utility.geTypeCode(a.getClass()),
+                    Utility.geTypeCode(b.getClass())),
                     av + bv);
         } else if (OpCodes.OP_DIV.equals(op)) {
-            return Number.asNumber(Math.max(Number.geTypeCode(a.getClass()),
-                    Number.geTypeCode(b.getClass())),
+            return Utility.asNumber(Math.max(Utility.geTypeCode(a.getClass()),
+                    Utility.geTypeCode(b.getClass())),
                     av / bv);
         } else if (OpCodes.OP_GT.equals(op)) {
             return av > bv;
@@ -627,16 +623,16 @@ public class Interpreter {
         } else if (OpCodes.OP_LTE.equals(op)) {
             return av <= bv;
         } else if (OpCodes.OP_MOD.equals(op)) {
-            return Number.asNumber(Math.max(Number.geTypeCode(a.getClass()),
-                    Number.geTypeCode(b.getClass())),
+            return Utility.asNumber(Math.max(Utility.geTypeCode(a.getClass()),
+                    Utility.geTypeCode(b.getClass())),
                     av % bv);
         } else if (OpCodes.OP_MUL.equals(op)) {
-            return Number.asNumber(Math.max(Number.geTypeCode(a.getClass()),
-                    Number.geTypeCode(b.getClass())),
+            return Utility.asNumber(Math.max(Utility.geTypeCode(a.getClass()),
+                    Utility.geTypeCode(b.getClass())),
                     av * bv);
         } else if (OpCodes.OP_SUB.equals(op)) {
-            return Number.asNumber(Math.max(Number.geTypeCode(a.getClass()),
-                    Number.geTypeCode(b.getClass())),
+            return Utility.asNumber(Math.max(Utility.geTypeCode(a.getClass()),
+                    Utility.geTypeCode(b.getClass())),
                     av - bv);
         }
         this.error("数据类型不匹配，不能作数值运算。");
@@ -685,79 +681,6 @@ public class Interpreter {
         }
         this.error("give object is a non-terable object." + obj.getClass());
         return obj;
-    }
-
-    static class Number {
-
-        static final int OBJECT = 0,
-                NUM_SHORT = 1,
-                NUM_INTEGER = 2,
-                NUM_LONG = 3,
-                NUM_FLOAT = 4,
-                NUM_DOUBLE = 5;
-
-        private static int geTypeCode(Class<?> clazz) {
-            switch (clazz.getName()) {
-                case "long":
-                case "java.lang.Long":
-                    return Number.NUM_LONG;
-                case "int":
-                case "java.lang.Integer":
-                    return Number.NUM_INTEGER;
-                case "double":
-                case "java.lang.Double":
-                    return Number.NUM_DOUBLE;
-                case "float":
-                case "java.lang.Float":
-                    return Number.NUM_INTEGER;
-                case "short":
-                case "java.lang.Short":
-                    return Number.NUM_SHORT;
-                default:
-                    return 0;
-            }
-        }
-
-        private static <T> T cast(Class<T> clazz, Object obj) {
-            Object result;
-            int code = geTypeCode(clazz);
-            switch (code) {
-                case Number.NUM_DOUBLE:
-                case Number.NUM_FLOAT:
-                case Number.NUM_INTEGER:
-                case Number.NUM_LONG:
-                case Number.NUM_SHORT:
-                    result = asNumber(code, toDouble(obj));
-                    break;
-                default:
-                    return clazz.cast(obj);
-            }
-            return (T) result;
-        }
-
-        private static double toDouble(Object obj) {
-            return Double.parseDouble(obj.toString());
-        }
-
-        private static Object asNumber(int type, double obj) {
-            Object result;
-
-            switch (type) {
-                case Number.NUM_DOUBLE:
-                    return obj;
-                case Number.NUM_FLOAT:
-                    return (float) obj;
-                case Number.NUM_INTEGER:
-                    return (int) obj;
-                case Number.NUM_LONG:
-                    return (long) obj;
-                case Number.NUM_SHORT:
-                    return (short) obj;
-                default:
-                    return obj;
-            }
-        }
-
     }
 
 }

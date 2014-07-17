@@ -21,11 +21,11 @@ import java.util.logging.Logger;
 public abstract class Parser {
 
     protected Parser() {
-        dom = new Document(this);
+        
     }
 
-    private String filename;
-    java.io.BufferedReader reader;
+    protected String filename;
+    protected java.io.BufferedReader reader;
     private long line = 0;
     private Map<Long, String> lines;
     String leftDelimiter = "{{";
@@ -63,6 +63,7 @@ public abstract class Parser {
 
     public void parse() throws IOException {
         lines = new HashMap<>();
+        dom = new Document(this);
         String s;
         while ((s = reader.readLine()) != null) {
             line++;

@@ -215,7 +215,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
             rsp.end();
             //t.printStackTrace();
         } catch (Exception ex) {
-            service.logger().error("", ex);
+            service.getLogger().error("", ex);
         }
     }
 

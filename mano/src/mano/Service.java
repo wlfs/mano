@@ -20,11 +20,11 @@ public abstract class Service implements Runnable {
     protected String name;
     
 
-    public Logger logger() {
+    public Logger getLogger() {
         return this.log;
     }
 
-    public Activator activator() {
+    public Activator getLoader() {
         return this.act;
     }
 

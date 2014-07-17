@@ -6,6 +6,7 @@
  * 
  */
 
+import java.io.FileNotFoundException;
 import java.util.Stack;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -19,6 +20,7 @@ import mano.util.Logger;
 import mano.util.NameValueCollection;
 import mano.util.ObjectFactory;
 import mano.util.ThreadPool;
+import mano.util.Utility;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
 import org.python.core.*;
@@ -75,9 +77,13 @@ public class Program {
     CachedObjectFactory<test> factory;
     String bootstrapPath;
 
-    void init() {
+    private void init() throws FileNotFoundException {
         logger = new Log4jLogger();
         loader = new Activator();
+        bootstrapPath = System.getProperty("user.dir");
+        loader.register(Utility.combinePath(bootstrapPath, "dist").toString());
+        loader.register(Utility.combinePath(bootstrapPath, "dist/lib").toString());
+
         /*Program me=this;
          factory = new CachedObjectFactory<>(new ObjectFactory<test>(){
 
@@ -94,7 +100,7 @@ public class Program {
 
     void configServices() throws XmlException, InstantiationException, ClassNotFoundException {
         services = new NameValueCollection<>();
-        String configPath = this.bootstrapPath + "\\config.xml";
+        String configPath = Utility.combinePath(bootstrapPath, "server/config.xml").toString();
         XmlHelper helper = XmlHelper.load(configPath);
         NodeList nodes = helper.selectNodes("/configuration/services/service");
 
@@ -128,105 +134,23 @@ public class Program {
         }
     }
 
-    public static class TplObject {
-
-        public static final long TYPE_UNKONW = 0;
-        public static final long TYPE_NULL = 1;
-        public static final long TYPE_SHORT = 2;
-        public static final long TYPE_INTEGER = 4;
-        public static final long TYPE_LONG = 8;
-        public static final long TYPE_FLOAT = 16;
-        public static final long TYPE_DOUBLE = 32;
-        public static final long TYPE_BOOL = 64;
-        public static final long TYPE_STRING = 128;
-        public static final long TYPE_ENUM = 256;
-        public static final long TYPE_DATETIME = 512;
-        public static final long TYPE_SET = 1024;
-        public static final long TYPE_MAP = 2048;
-        public static final long TYPE_INSTANCE = 4096;
-        public static final long TYPE_CALLABLE = 4096;
-
-        public TplObject(Object value) {
-            Class<?> clazz = value.getClass();
-            clazz.isPrimitive();
-        }
-
-        public void set(Object value) {
-
-        }
-
-        public Object get() {
-            return null;
-        }
-
-        public boolean eq(Object value) {
-            return true;
-        }
-
-        public String getType() {
-            return null;
-        }
-
-        public static TplObject parse(String expr, Object domain) {
-            return null;
-        }
-    }
-
     /**
-     * @param args the command line arguments
+     * @param args the command line arguments:
+     * <p>
+     * 
+     * </p>
      */
     public static void main(String[] args) {
 
-        /*Stack<Object> stack = new Stack<>();
-        String[] cmds = new String[4];
-        cmds[0] = "ldnum 15";
-        cmds[1] = "ldnum 5";
-        cmds[2] = "plus";
-        cmds[3] = "puts";//1 lodstr,30,vvvvvvv
-
-        for (String cmd : cmds) {
-            String[] arr = cmd.split(" ");
-            switch (arr[0]) {
-                case "ldnum":
-                    stack.push(arr[1]);
-                    break;
-                case "plus":
-                    Object a = stack.pop();
-                    Object b = stack.pop();
-                    stack.push((Integer.parseInt(a.toString())) + (Integer.parseInt(b.toString())));
-                    break;
-                case "puts":
-                    System.out.println(stack.pop());
-                    break;
-            }
-        }*/
-
-        /*PythonInterpreter pi = new PythonInterpreter();
-
-         pi.setOut(System.out);
-        
-         Program.test t=new Program.test(null);
-         t.num=500;
-         t.kk="world";
-         pi.set("test", t);
-        
-         pi.exec("print test.call()");
-         
-        if (true) {
-            return;
-        }*/
-        //PyViewEngine pp = new PyViewEngine();
         Program server = new Program();
-        server.bootstrapPath = "E:\\repositories\\java\\mano\\mano.server\\server";
-        server.init();
+
         try {
-            server.loader.register("E:\\repositories\\java\\mano\\mano\\dist");
-            server.loader.register("E:\\repositories\\java\\mano\\mano.wrt\\dist");
-            server.loader.register("E:\\repositories\\java\\mano\\mano.otpl\\dist");
+            server.init();
+
             server.configServices();
 
-            server.services.values().stream().forEach((svc) -> {
-                new Thread(svc).start();
+            server.services.values().stream().forEach((service) -> {
+                ThreadPool.execute(service);
             });
 
             server.loop();

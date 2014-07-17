@@ -9,6 +9,8 @@ package mano.util;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 /**
@@ -16,6 +18,10 @@ import java.util.ArrayList;
  * @author jun <jun@diosay.com>
  */
 public class Utility {
+
+    public static Path combinePath(String first, String... more) {
+        return Paths.get(first, more);
+    }
 
     //http://blog.sina.com.cn/s/blog_7a35101201012n0b.html
     //http://blog.csdn.net/snakeqi/article/details/344069
@@ -45,7 +51,7 @@ public class Utility {
     }
 
     public static short toShort(byte[] bytes, int index) {
-        
+
         return ByteBuffer.wrap(bytes, index, 2).order(ByteOrder.LITTLE_ENDIAN).getShort();
         //return (short) ((0xff & bytes[index]) | (0xff & (bytes[index + 1] << 8)));
     }
@@ -97,7 +103,7 @@ public class Utility {
     public static double toDouble(byte[] bytes, int index) {
         return Double.longBitsToDouble(toLong(bytes, index));
     }
-    
+
     public static byte[] toBytes(float f) {
         return toBytes(Float.floatToIntBits(f));
     }
@@ -105,4 +111,74 @@ public class Utility {
     public static float toFloat(byte[] bytes, int index) {
         return Float.intBitsToFloat(toInt(bytes, index));
     }
+
+    public static final int OBJECT = 0,
+            NUM_SHORT = 1,
+            NUM_INTEGER = 2,
+            NUM_LONG = 3,
+            NUM_FLOAT = 4,
+            NUM_DOUBLE = 5;
+
+    public static int geTypeCode(Class<?> clazz) {
+        switch (clazz.getName()) {
+            case "long":
+            case "java.lang.Long":
+                return Utility.NUM_LONG;
+            case "int":
+            case "java.lang.Integer":
+                return Utility.NUM_INTEGER;
+            case "double":
+            case "java.lang.Double":
+                return Utility.NUM_DOUBLE;
+            case "float":
+            case "java.lang.Float":
+                return Utility.NUM_INTEGER;
+            case "short":
+            case "java.lang.Short":
+                return Utility.NUM_SHORT;
+            default:
+                return 0;
+        }
+    }
+
+    public static <T> T cast(Class<T> clazz, Object obj) {
+        Object result;
+        int code = geTypeCode(clazz);
+        switch (code) {
+            case Utility.NUM_DOUBLE:
+            case Utility.NUM_FLOAT:
+            case Utility.NUM_INTEGER:
+            case Utility.NUM_LONG:
+            case Utility.NUM_SHORT:
+                result = asNumber(code, toDouble(obj));
+                break;
+            default:
+                return clazz.cast(obj);
+        }
+        return (T) result;
+    }
+
+    public static double toDouble(Object obj) {
+        return Double.parseDouble(obj.toString());
+    }
+
+    public static Object asNumber(int type, double obj) {
+        Object result;
+
+        switch (type) {
+            case Utility.NUM_DOUBLE:
+                return obj;
+            case Utility.NUM_FLOAT:
+                return (float) obj;
+            case Utility.NUM_INTEGER:
+                return (int) obj;
+            case Utility.NUM_LONG:
+                return (long) obj;
+            case Utility.NUM_SHORT:
+                return (short) obj;
+            default:
+                return obj;
+        }
+    }
+
 }

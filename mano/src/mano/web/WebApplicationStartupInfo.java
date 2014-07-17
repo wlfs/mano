@@ -36,13 +36,13 @@ public class WebApplicationStartupInfo{
                 return null;
             }
             try {
-                WebApplication app= (WebApplication)service.activator().newInstance(this.type);
+                WebApplication app= (WebApplication)service.getLoader().newInstance(this.type);
                 if(app!=null){
                     app.init(this);
                     return app;
                 }
             } catch (Exception ex) {
-                service.logger().error("", ex);
+                service.getLogger().error("", ex);
             }
             return null;
         }

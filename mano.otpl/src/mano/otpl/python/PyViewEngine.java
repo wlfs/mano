@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 import mano.http.HttpContext;
 import mano.otpl.python.PyParaser;
 import mano.otpl.python.PyParaser;
-import mano.web.RouteService;
+import mano.web.RequestService;
 import mano.web.ViewEngine;
 import org.python.util.PythonInterpreter;
 
@@ -64,7 +64,7 @@ public class PyViewEngine extends ViewEngine {
     }
     
     @Override
-    public void render(RouteService service, String tmpName) {
+    public void render(RequestService service, String tmpName) {
         //java.io.FileInputStream fs = null;
 
         /*fs = new java.io.FileInputStream(tmpName);
@@ -91,6 +91,11 @@ public class PyViewEngine extends ViewEngine {
             ex.printStackTrace();
             //Logger.getLogger(Paraser.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+
+    @Override
+    public void render(RequestService service) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
     
     class OutputProxy extends Writer {

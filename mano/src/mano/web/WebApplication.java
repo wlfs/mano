@@ -7,16 +7,16 @@
  */
 package mano.web;
 
-import mano.Activator;
-import mano.http.HttpContext;
-import mano.http.HttpModule;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import mano.Activator;
 import mano.InvalidOperationException;
+import mano.http.HttpContext;
+import mano.http.HttpModule;
 import mano.http.HttpStatus;
+import mano.util.Logger;
+import mano.util.Utility;
 
 /**
  *
@@ -26,17 +26,36 @@ public class WebApplication {
 
     private Set<HttpModule> _modules;
     private Activator loader;
+    private String basedir;
+    private String viewdir;
+    private Logger logger;
+
+    public Activator getLoader() {
+        return loader;
+    }
+
+    public Logger getLogger() {
+        return logger;
+    }
 
     public final void init(WebApplicationStartupInfo info) {
 
-        loader = new Activator(info.service.activator());
+        loader = new Activator(info.service.getLoader());
+        logger = info.service.getLogger();
         _modules = new LinkedHashSet<>();
+        basedir = info.path;
+
+        if (basedir.startsWith("./") || basedir.startsWith(".\\")) {
+            basedir = Utility.combinePath(info.serverPath, basedir.substring(1)).toString();
+        } else if (basedir.startsWith("/") || basedir.startsWith("\\")) {
+            basedir = Utility.combinePath(info.serverPath, basedir).toString();
+        }
 
         for (mano.http.HttpModuleSettings settings : info.modules.values()) {
             try {
                 HttpModule mod = (HttpModule) loader.newInstance(settings.type);
                 if (mod != null) {
-                    mod.init(settings.params);
+                    mod.init(this, settings.params);
                     _modules.add(mod);
                 }
             } catch (InstantiationException | ClassNotFoundException ex) {
@@ -94,6 +113,11 @@ public class WebApplication {
             context.getResponse().write("<html><head><title>%d Error</title></head><body>%s<body></html>", 404, "Not Found");
             context.getResponse().end();
         }
+        
+        if(!context.isCompleted()){
+            context.getResponse().end();
+        }
+        
         /*
          this.onBeginRequest(context);
          if (context.handler() == null) {
@@ -107,6 +131,12 @@ public class WebApplication {
          this.postHandlerExecute(context);
          */
     }
+
+    public String getBasedir() {
+        return basedir;
+    }
+
+
     /*
      class HttpModuleSettings {
      public String path;
@@ -177,19 +207,4 @@ public class WebApplication {
         
      }
      */
-    ViewEngine viewEngine;
-
-    public ViewEngine getViewEngine() {
-        if (viewEngine == null) {
-            try {
-                viewEngine=(ViewEngine)this.loader.newInstance("mano.otpl.OtplViewEngine,mano.otpl");
-            } catch (InstantiationException ex) {
-                Logger.getLogger(WebApplication.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (ClassNotFoundException ex) {
-                Logger.getLogger(WebApplication.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-        return viewEngine;
-    }
-
 }
