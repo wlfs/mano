@@ -60,7 +60,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
     public WebApplication getApplication() {
         return _application;
     }
-    
+
     public void init() {
         buffer = this.service.workBufferPool().get();
         req = new HttpRequestImpl(this);
@@ -101,7 +101,8 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
 
     /**
      * 定入数据
-     * @param buffer 
+     *
+     * @param buffer
      */
     void write(ByteBuffer buffer) {
         write(service.newTask().buffer(buffer).attach(this));
@@ -109,7 +110,8 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
 
     /**
      * 执行传输一个任务
-     * @param task 
+     *
+     * @param task
      */
     void write(Task task) {
         conn.write(task);
@@ -219,8 +221,6 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
         }
     }
 
-    
-
     @Override
     public boolean isCompleted() {
         return completed;
@@ -308,6 +308,9 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
                         context.req.hasPostData(); //提前确定POST数据，发现错误
                         if (!context.service.handle(context)) {
                             throw new HttpException(HttpStatus.BadRequest, "Bad Request (Invalid Hostname)");
+                        }
+                        if (!context.isCompleted()) {
+                            context.getResponse().end();
                         }
                         return;
                     }

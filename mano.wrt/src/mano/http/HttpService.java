@@ -7,6 +7,7 @@
  */
 package mano.http;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
@@ -14,6 +15,7 @@ import java.nio.channels.InterruptedByTimeoutException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
 import mano.Activator;
 import mano.Service;
 import mano.io.BufferPool;
@@ -150,21 +152,27 @@ public class HttpService extends Service {
                 continue;
             }
 
-            WebApplicationStartupInfo settings = new WebApplicationStartupInfo();
-            settings.host = s;
-            settings.name = attrs.getNamedItem("name").getNodeValue();
-            settings.type = attrs.getNamedItem("type").getNodeValue();
-            settings.path = attrs.getNamedItem("path").getNodeValue();
-            settings.settings = new NameValueCollection<>();
-            settings.service = this;
-            settings.modules = modules;
-            settings.serverPath = this.bootstrapPath;
-            NodeList params = helper.selectNodes(nodes.item(i), "params/param");
+            WebApplicationStartupInfo info = new WebApplicationStartupInfo();
+            info.host = s;
+            info.name = attrs.getNamedItem("name").getNodeValue();
+            info.type = attrs.getNamedItem("type").getNodeValue();
+            info.path = attrs.getNamedItem("path").getNodeValue();
+            info.settings = new NameValueCollection<>();
+            info.service = this;
+            info.modules = modules;
+            info.serverPath = this.bootstrapPath;
+            NodeList params = helper.selectNodes(nodes.item(i), "settings/add");
             for (int j = 0; j < params.getLength(); j++) {
                 attrs = params.item(j).getAttributes();
-                settings.settings.put(attrs.getNamedItem("name").getNodeValue(), params.item(j).getTextContent());
+                info.settings.put(attrs.getNamedItem("key").getNodeValue(), attrs.getNamedItem("value").getNodeValue());
             }
-            appInfos.put(s, settings);
+
+            /*params = helper.selectNodes(nodes.item(i), "params/param");
+             for (int j = 0; j < params.getLength(); j++) {
+             attrs = params.item(j).getAttributes();
+             info.settings.put(attrs.getNamedItem("name").getNodeValue(), params.item(j).getTextContent());
+             }*/
+            appInfos.put(s, info);
         }
         //include
     }
@@ -176,12 +184,14 @@ public class HttpService extends Service {
             info = appInfos.get("*"); //默认
         }
         if (info != null) {
+            
+            
             WebApplication app = info.getInstance();
             if (app != null) {
 
-                context._server = new HttpServerImpl(app.getBasedir(), "/", "ManoServer/1.1");
-
+                context._server = info.getServerInstance();
                 context._application = app;
+
                 app.init(context);
                 return true;
             }
@@ -387,40 +397,6 @@ public class HttpService extends Service {
                 }
             }
         }
-    }
-
-    private class HttpServerImpl implements HttpServer {
-
-        HttpServerImpl(String basedir, String vpath, String version) {
-            this._basedir = basedir;
-            this._version = version;
-            this._vpath = vpath;
-        }
-
-        public String _basedir;
-        private String _version = "ManoServer/1.1";
-        private String _vpath;
-
-        @Override
-        public String getBaseDirectory() {
-            return _basedir;
-        }
-
-        @Override
-        public String getVirtualPath() {
-            return _vpath;
-        }
-
-        @Override
-        public String mapPath(String vpath) {
-            return Paths.get(_basedir, _vpath, vpath).toString();
-        }
-
-        @Override
-        public String getVersion() {
-            return _version;
-        }
-
     }
 
 }

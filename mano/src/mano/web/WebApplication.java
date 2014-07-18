@@ -7,12 +7,15 @@
  */
 package mano.web;
 
+import java.io.FileNotFoundException;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 import mano.Activator;
 import mano.InvalidOperationException;
 import mano.http.HttpContext;
+import mano.http.HttpException;
 import mano.http.HttpModule;
 import mano.http.HttpStatus;
 import mano.util.Logger;
@@ -24,42 +27,32 @@ import mano.util.Utility;
  */
 public class WebApplication {
 
-    private Set<HttpModule> _modules;
+    private Set<HttpModule> modules;
     private Activator loader;
-    private String basedir;
-    private String viewdir;
-    private Logger logger;
+    private WebApplicationStartupInfo startupInfo;
 
     public Activator getLoader() {
         return loader;
     }
 
     public Logger getLogger() {
-        return logger;
+        return startupInfo.service.getLogger();
     }
 
-    public final void init(WebApplicationStartupInfo info) {
+    private void init(WebApplicationStartupInfo info, Activator activator) {
+        startupInfo = info;
+        loader = activator;
 
-        loader = new Activator(info.service.getLoader());
-        logger = info.service.getLogger();
-        _modules = new LinkedHashSet<>();
-        basedir = info.path;
-
-        if (basedir.startsWith("./") || basedir.startsWith(".\\")) {
-            basedir = Utility.combinePath(info.serverPath, basedir.substring(1)).toString();
-        } else if (basedir.startsWith("/") || basedir.startsWith("\\")) {
-            basedir = Utility.combinePath(info.serverPath, basedir).toString();
-        }
-
+        modules = new LinkedHashSet<>();
         for (mano.http.HttpModuleSettings settings : info.modules.values()) {
             try {
                 HttpModule mod = (HttpModule) loader.newInstance(settings.type);
                 if (mod != null) {
                     mod.init(this, settings.params);
-                    _modules.add(mod);
+                    modules.add(mod);
                 }
             } catch (InstantiationException | ClassNotFoundException ex) {
-                ex.printStackTrace();
+                getLogger().error("WebApplication.init(modules)", ex);
             }
         }
 
@@ -76,6 +69,28 @@ public class WebApplication {
         //loader
         //items
         //session state
+    }
+
+    /**
+     * 获取用户配置参数。
+     *
+     * @param name 配置名称。
+     * @return 值。
+     */
+    public final String getSettingValue(String name) {
+        if (this.startupInfo.settings.containsKey(name)) {
+            return this.startupInfo.settings.get(name);
+        }
+        return null;
+    }
+
+    /**
+     * 获取应用程序根目录。
+     *
+     * @return
+     */
+    public final String getApplicationPath() {
+        return this.startupInfo.getServerInstance().getBaseDirectory();
     }
 
     public final void destory() {
@@ -95,116 +110,39 @@ public class WebApplication {
         //获取session
         //获取handlers
         //循环调用
-        System.out.println(context.getRequest().rawUrl());
+        //System.out.println(context.getRequest().rawUrl());
         boolean processed = false;
-        for (HttpModule module : _modules) {
+        for (HttpModule module : modules) {
             if (module.handle(context)) {
                 processed = true;
                 break;
             }
         }
+        
         if (!processed) {
-            try {
-                context.getResponse().setHeader("Connection", "close");
-                context.getResponse().status(HttpStatus.NotFound);
-            } catch (InvalidOperationException ignored) {
-                //
-            }
-            context.getResponse().write("<html><head><title>%d Error</title></head><body>%s<body></html>", 404, "Not Found");
-            context.getResponse().end();
+            this.onError(context, new HttpException(HttpStatus.NotFound, "404 Not Found"));
         }
-        
-        if(!context.isCompleted()){
-            context.getResponse().end();
-        }
-        
-        /*
-         this.onBeginRequest(context);
-         if (context.handler() == null) {
-         HttpModule handler = resolveHandler(context);
-         if (handler == null) {
-         //404
-         }
-         context.handler(handler);
-         }
-        
-         this.postHandlerExecute(context);
-         */
     }
 
-    public String getBasedir() {
-        return basedir;
+    protected void onError(HttpContext context, Throwable t) {
+        HttpException ex;
+        if (t instanceof HttpException) {
+            ex = (HttpException) t;
+        } else {
+            ex = new HttpException(HttpStatus.InternalServerError, t);
+        }
+
+        try {
+            context.getResponse().setHeader("Connection", "close");
+            context.getResponse().status(ex.getHttpCode());
+        } catch (Exception e) {
+            //ignored
+        }
+
+        try {
+            context.getResponse().write("<html><head><title>%d Error</title></head><body>%s<body></html>", ex.getHttpCode(), ex.getMessage());
+        } catch (Exception e) {
+            //ignored
+        }
     }
-
-
-    /*
-     class HttpModuleSettings {
-     public String path;
-     public String verb;
-     public String mime;
-     public String type;
-     public String args;
-        
-     }
-
-     protected HttpModule resolveHandler(HttpContext context) {
-     String path = context.request().url().getPath();//+context.request().url().getQuery();
-        
-     //path.html
-     return new HttpModule() {
-
-     @Override
-     public void init(Map<String, String> params) {
-     throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-     }
-
-     @Override
-     public boolean handle(HttpContext context) {
-     context.response().write("hello world");
-     throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-     }
-
-     @Override
-     public void dispose() {
-     throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-     }
-
-
-     };
-
-     }
-
-     protected final void postHandlerExecute(HttpContext context) {
-     new Thread(new Runnable() {
-     @Override
-     public void run() {
-     //http://www.cnblogs.com/tangself/archive/2011/03/28/1998007.html
-     //java.util.Timer timer=new java.util.Timer(); http://www.cnblogs.com/jinspire/archive/2012/02/10/2345256.html
-
-     context.handler().handle(context);
-     if (!context.isCompleted()) {
-     context.response().end();
-     //throw new InterruptedException();
-     }
-     }
-     }).start();
-     //触发end事件
-     }
-    
-     protected void acquireRequestState(){
-     //触发session事件
-     }
-    
-     //只是一个开始事件
-     protected void onBeginRequest(HttpContext context){
-     if(true){ //err
-     context.handler(null);//errhandler
-     }
-     }
-    
-     //只是一个结束事件
-     protected void onEndRequest(HttpContext context){
-        
-     }
-     */
 }

@@ -1,7 +1,7 @@
 {{layout './master.html'}}
 <p>member property:{{obj.field}}</p>
 <p>member property(auto):{{obj.oprop}}</p>
-<p>member property(get):{{obj.prop}}</p>
+<p>member property(get):{{obj.prop[1].call()}}</p>
 <p>member call result:{{obj.addTest (3,20)}}</p>
 <hr/>
 <h2>分支:</h2>
@@ -18,7 +18,7 @@ none
 <h2>循环:</h2>
 <h3>for语句:</h3>
 <pre>
-    原形：  {for:var max min}
+    原形：  {for:var max,min,step}
     循环条件满足时运行。
     {else}
     循环条件不满足时运行。
@@ -28,29 +28,32 @@ none
     min：   可选，默认为0。循环的最小值（整数）。
 </pre>
 <p>例1:</p>
-{{for:i 20}}
-{{if i>9}}
-{{break}}
-不显示
-{{else}}
-{{i}}
-{{/if}}
+{{for:i 20,8,1}}
+    {{if i>9}}
+        {{break}}
+        不显示
+    {{else}}
+        {{i}}
+    {{/if}}
 
 {{else}}
-没有循环
+    没有循环
 {{/for}}
+
 <h3>each语句:</h3>
-{{each:key list}}
-{{key}}
+{{each:item list}}
+    {{item}}
 {{else}}
-没有迭代
+    没有迭代
 {{/each}}
-{{/*}}{{include './tpl.html'}}
 
 
-{{place:id true}}{{*/}}
+
+{{/*}}
+{{include './tpl.html'}}
+{{*/}}
 {{block:id}}
-child's block content
+child's block content1
 {{/block}}
 
 

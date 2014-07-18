@@ -46,6 +46,10 @@ public abstract class Service implements Runnable {
         
     }
     
+    public ServiceContainer getContainer(){
+        return null;
+    }
+    
     @Override
     public String toString(){
         return this.getClass()+"["+ this.name +"]";

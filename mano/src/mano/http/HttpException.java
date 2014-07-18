@@ -25,6 +25,11 @@ public class HttpException extends Exception {
         super(message);
         this._httpCode = httpCode;
     }
+    
+    public HttpException(int httpCode, Throwable t) {
+        super(t);
+        this._httpCode = httpCode;
+    }
 
     /*
      * 获取要返回给客户端的 HTTP 响应状态代码。

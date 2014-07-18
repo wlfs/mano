@@ -53,13 +53,13 @@
         
         <web.applications>
             <!--<include path="xxx/web.xml"/>-->
-            <application name="default application" host="localhost:9999" path="/server/wwwroot" vpath="/" type="mano.web.WebApplication,mano">
+            <application name="default application" host="localhost:9999" path="/server/wwwroot" vpath="/user" type="mano.web.WebApplication,mano">
                 <settings>
                     <add key="db:driver:myconn" value="mysql"/>
                     <add key="db:strings:myconn" value="jdbc:mysql://localhost/myDB"/>
                 </settings>
-                <!--<request.routing autoDectect="true" controller="home" action="index">
-                    <controller name="packge.jar"/>
+                <!--<request.routing autoDectect="true" domain="admin" controller="home" action="index">
+                    <controller name="packge.jar" domain=""/>
                 </request.routing>-->
             </application>
         </web.applications>

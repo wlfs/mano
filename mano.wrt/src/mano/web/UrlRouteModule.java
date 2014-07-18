@@ -251,8 +251,8 @@ public class UrlRouteModule implements HttpModule {
                 } catch (ClassNotFoundException ex) {
                     Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                viewEngine.setTempdir(Utility.combinePath(app.getBasedir(), "data/tmp").toString());
-                viewEngine.setViewdir(Utility.combinePath(app.getBasedir(), "views").toString());
+                viewEngine.setTempdir(Utility.combinePath(app.getApplicationPath(), "data/tmp").toString());
+                viewEngine.setViewdir(Utility.combinePath(app.getApplicationPath(), "views").toString());
             }
         }
 
