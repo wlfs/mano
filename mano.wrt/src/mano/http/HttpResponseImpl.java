@@ -81,7 +81,7 @@ final class HttpResponseImpl extends HttpResponse {
             }
 
             if (!headers.containsKey("Content-Type")) {
-                this.setHeader("Content-Type", "text/html");
+                this.setHeader("Content-Type", "text/html;charset=utf-8");
             }
 
             if (!this._chunked && this._endFlush) {

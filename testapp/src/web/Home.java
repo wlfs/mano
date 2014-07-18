@@ -13,7 +13,7 @@ import mano.web.*;
  * MVC  - DCI
  * @author jun <jun@diosay.com>
  */
-@UrlMapping("/user/{id}")
+@UrlMapping("/home")
 public class Home extends Controller {
     
     public String field = "i am is a field";

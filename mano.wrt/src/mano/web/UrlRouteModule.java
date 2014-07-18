@@ -63,6 +63,7 @@ public class UrlRouteModule implements HttpModule {
             while (entries.hasMoreElements()) {
                 entry = entries.nextElement();
                 name = entry.getName();
+                
                 if (!entry.isDirectory() && name.endsWith(".class") && name.indexOf("$") < 1) {//
                     try {
                         name = (name.substring(0, name.length() - 6)).replace('/', '.');
@@ -137,7 +138,7 @@ public class UrlRouteModule implements HttpModule {
             }
 
             //查找方法，获取第2部分URL 和签名参数
-            for (Method method : clazz.getMethods()) {
+            for (Method method : clazz.getDeclaredMethods()) {
                 mapping = method.getAnnotation(UrlMapping.class);
                 if (mapping == null) {
                     continue;

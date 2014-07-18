@@ -114,6 +114,8 @@ public class Interpreter {
                 exec(current.getNext());
             }
         }
+        current=null;
+        running=true;
         //LinkedList<int> f;
     }
 

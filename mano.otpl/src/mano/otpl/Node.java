@@ -84,6 +84,10 @@ public abstract class Node {
     public String getSource() {
         return source;
     }
+    
+    public long getLine() {
+        return lineNo;
+    }
 
     public abstract boolean isBlock();
 

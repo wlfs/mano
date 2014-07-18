@@ -21,7 +21,7 @@ import java.util.logging.Logger;
 public abstract class Parser {
 
     protected Parser() {
-        
+
     }
 
     protected String filename;
@@ -180,8 +180,14 @@ public abstract class Parser {
 
         return -1;
     }
+    protected Node cnode;
 
     protected void reportError(String cacuse) {
+        if (cnode != null) {
+            cacuse += "," + cnode.getLine() + "(" + cnode.getSourceFilename() + ")";
+        } else {
+            cacuse += "," + this.line + "(" + this.filename + ")";
+        }
         throw new java.lang.RuntimeException(cacuse);
     }
 
@@ -252,7 +258,7 @@ public abstract class Parser {
             Node node = End.create(this, Node.LEXS_ENDBLOCK);
             dom.append(node);
         } else if ((index = assertKeyword("block", source)) > -1) { //end if
-            if ((index = assertKeyword(":", source,index)) < 0) {
+            if ((index = assertKeyword(":", source, index)) < 0) {
                 this.reportError("语法错误");
             }
             int found = this.parseIdentifier(source, index);

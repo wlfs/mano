@@ -1,7 +1,7 @@
-{{layout './master.html'}}
+{{layout '/master.html'}}
 <p>member property:{{obj.field}}</p>
 <p>member property(auto):{{obj.oprop}}</p>
-<p>member property(get):{{obj.prop[1].call()}}</p>
+<p>member property(get):{{obj.prop}}</p>
 <p>member call result:{{obj.addTest (3,20)}}</p>
 <hr/>
 <h2>分支:</h2>
@@ -28,7 +28,7 @@ none
     min：   可选，默认为0。循环的最小值（整数）。
 </pre>
 <p>例1:</p>
-{{for:i 20,8,1}}
+{{for:i 20}}
     {{if i>9}}
         {{break}}
         不显示

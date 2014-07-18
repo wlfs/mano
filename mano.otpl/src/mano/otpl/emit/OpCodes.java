@@ -241,7 +241,13 @@ public enum OpCodes {
      * <p>
      * IL原形：地址(8)操作(2)字符串长度(4)数据(n)，共 14+n 字节。</p>
      */
-    INCLUDE(37, "inc"),;
+    INCLUDE(37, "inc"),
+    //http://msdn.microsoft.com/zh-cn/library/34dk387t.aspx
+    /* 定义一个宏用于DEBUG调试。
+     * <p>
+     * IL原形：地址(8)操作(2)原行号(4)文件名长度(4)文件名(n)，共 18+n 字节。</p>
+     */
+    LINE(38, "line"),;
 
     private final short value;
     private final String name;

@@ -115,19 +115,22 @@ public class EmitParser extends Parser {
         if (node == null || node.mark) {
             return;
         }
+        cnode=node;
         if (node.isBlock()) {
             parseBlock((Block) node,null,null);
         } else {
             parseSpan((Span) node,null,null);
         }
     }
-
+    
     public void parse(Node node, OpCode loop_start, OpCode loop_end) {
         if (node == null || node.mark) {
             return;
         }
+        cnode=node;
         if (node.isBlock()) {
             parseBlock((Block) node, loop_start, loop_end);
+            
         } else {
             parseSpan((Span) node, loop_start, loop_end);
         }
