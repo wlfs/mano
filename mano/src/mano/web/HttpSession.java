@@ -5,16 +5,21 @@
  * See more http://mano.diosay.com/
  * 
  */
-
 package mano.web;
+
+import mano.caching.CacheProvider;
 
 /**
  *
  * @author jun <jun@diosay.com>
  */
 public class HttpSession {
-    public String getSessionId(){
-        return "MANO-SID-XXXXXX";
+
+    private CacheProvider provider;
+    private static final String COOKIE_KEY = "--MANO$SID--";
+
+    public String getSessionId() {
+        return "--MANO$SID--";
     }
-    
+
 }

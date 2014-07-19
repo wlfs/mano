@@ -7,7 +7,6 @@
  */
 package mano.http;
 
-
 import mano.InvalidOperationException;
 import mano.util.DateTime;
 import java.io.FileInputStream;
@@ -22,7 +21,7 @@ import java.util.Map.Entry;
  * @author jun
  */
 final class HttpResponseImpl extends HttpResponse {
-
+    
     HttpHeaderCollection headers;
     HttpContextImpl _context;
     int _bufferSize = 1024;
@@ -31,18 +30,18 @@ final class HttpResponseImpl extends HttpResponse {
     boolean _endFlush = false;
     long _contentLength = 0;
     String CRLF = "\r\n";
-
+    
     HttpResponseImpl(HttpContextImpl context) {
         this._context = context;
         this.headers = new HttpHeaderCollection();
         _buffer = ByteBuffer.allocate(_bufferSize);
     }
-
+    
     @Override
     public HttpHeaderCollection headers() {
         return this.headers;
     }
-
+    
     @Override
     public synchronized void setHeader(String name, String value) throws InvalidOperationException {
         if (this.headerSent()) {
@@ -54,7 +53,7 @@ final class HttpResponseImpl extends HttpResponse {
             headers.put(new HttpHeader(name, value));
         }
     }
-
+    
     @Override
     public synchronized void setHeader(HttpHeader header) throws InvalidOperationException {
         if (this.headerSent()) {
@@ -66,30 +65,30 @@ final class HttpResponseImpl extends HttpResponse {
             headers.put(header);
         }
     }
-
+    
     private void writeHeaders() throws InvalidOperationException {
         if (!_headerSent) {
-
+            
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("%s %s %s%s", "HTTP/1.1", this.status(), this.statusDescription(), CRLF));
-
+            
             if (!headers.containsKey("Date")) {
-                this.setHeader("Date", DateTime.format(DateTime.FORMAT_GMT));
+                this.setHeader("Date", DateTime.now().toString(DateTime.FORMAT_GMT));
             }
             if (!headers.containsKey("Connection")) {
                 this.setHeader("Connection", "keep-alive");
             }
-
+            
             if (!headers.containsKey("Content-Type")) {
                 this.setHeader("Content-Type", "text/html;charset=utf-8");
             }
-
+            
             if (!this._chunked && this._endFlush) {
                 this.setHeader("Content-Length", this._contentLength + "");
             } else {
                 this.setHeader("Transfer-Encoding", "chunked");
             }
-
+            
             for (Entry<String, HttpHeader> entry : headers.entrySet()) {
                 sb.append(String.format("%s%s", entry.getValue().toString(), CRLF));
             }
@@ -101,9 +100,9 @@ final class HttpResponseImpl extends HttpResponse {
             _headerSent = true;
         }
     }
-
+    
     private ByteBuffer _buffer;
-
+    
     @Override
     public synchronized void write(byte[] buf, int offset, int count) {
         if (_buffer == null) {
@@ -115,9 +114,9 @@ final class HttpResponseImpl extends HttpResponse {
             this.flush();
             this.write(buf, offset, count);
         } else {
-
+            
             _buffer.put(buf, offset, size);
-
+            
             _contentLength += size;
             if (count > size) {
                 this.flush();
@@ -125,44 +124,44 @@ final class HttpResponseImpl extends HttpResponse {
             }
         }
     }
-
+    
     @Override
     public synchronized void transmit(String filename) throws FileNotFoundException, IOException {
-
+        
         FileChannel chan = new FileInputStream(filename).getChannel();
         this.transmit(chan, 0, chan.size());
     }
-
+    
     @Override
     public synchronized void transmit(String filename, long position, long length) throws IOException {
         this.transmit(new FileInputStream(filename).getChannel(), position, length);
     }
-
+    
     private synchronized void transmit(FileChannel chan, long position, long length) throws IOException {
         this.flush();
-
+        
         if (!this._chunked || this._endFlush) {
             throw new IOException("错误的传输方式");
         }
-
+        
         _context.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(length), CRLF).getBytes(this.charset())));
         _context.write(_context.service.newTask().channel(chan, position, length).attach(_context));
         _context.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
     }
-
+    
     @Override
     public synchronized void flush() {
         if (!this._headerSent) {
             if (!this._endFlush) {
                 this._chunked = true;
             }
-
+            
             try {
                 this.writeHeaders();
             } catch (InvalidOperationException ex) {
             }
         }
-
+        
         int len = 0;
         if (_buffer != null) {
             len = _buffer.position();
@@ -174,7 +173,7 @@ final class HttpResponseImpl extends HttpResponse {
                 len = 0;
             }
         }
-
+        
         if (_chunked) {
             if (len > 0) {
                 _context.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(len), CRLF).getBytes(this.charset())));
@@ -183,7 +182,7 @@ final class HttpResponseImpl extends HttpResponse {
                 _context.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
                 len = 0;
             }
-
+            
             if (_endFlush && len <= 0) {
                 _context.write(ByteBuffer.wrap(String.format("0%s%s", CRLF, CRLF).getBytes(this.charset())));//没有尾部
             }
@@ -193,23 +192,23 @@ final class HttpResponseImpl extends HttpResponse {
         }
         _contentLength -= len;
     }
-
+    
     @Override
     public synchronized void end() {
         this._endFlush = true;
         this.flush();
         this._context.end();
-
+        
     }
-
+    
     @Override
     public boolean headerSent() {
         return _headerSent;
     }
-
+    
     @Override
     public boolean isConnected() {
         return true;// TODO
     }
-
+    
 }
