@@ -5,19 +5,15 @@
  * See more http://mano.diosay.com/
  * 
  */
-package mano.util;
+package mano;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.Month;
-import java.time.ZoneOffset;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
-import mano.InvalidOperationException;
 
 /**
  * 表示时间上的一刻，通常以日期和当天的时间表示。
@@ -29,12 +25,8 @@ import mano.InvalidOperationException;
  */
 public class DateTime {
 
-    java.time.LocalDateTime local;
     private TimeZone _timeZone;
-    private Locale _locale;
     private static final SimpleDateFormat _formatProvider = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-    private Calendar _calendar;
-    private static DateTime _instace;
 
     public static final String FORMAT_ISO = "yyyy-MM-dd HH:mm:ss";
     public static final String FORMAT_GMT = "EEE, d MMM yyyy HH:mm:ss 'GMT'";
