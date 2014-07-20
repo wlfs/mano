@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import mano.Activator;
 import mano.InvalidOperationException;
+import mano.ServiceProvider;
 import mano.http.HttpContext;
 import mano.http.HttpException;
 import mano.http.HttpModule;
@@ -29,6 +30,7 @@ public class WebApplication {
 
     private Set<HttpModule> modules;
     private Activator loader;
+    private Logger logger;
     private WebApplicationStartupInfo startupInfo;
 
     public Activator getLoader() {
@@ -36,7 +38,10 @@ public class WebApplication {
     }
 
     public Logger getLogger() {
-        return startupInfo.service.getLogger();
+        if (logger == null) {
+            logger = ((ServiceProvider) startupInfo.service).getService(Logger.class);
+        }
+        return logger;
     }
 
     private void init(WebApplicationStartupInfo info, Activator activator) {
@@ -118,7 +123,7 @@ public class WebApplication {
                 break;
             }
         }
-        
+
         if (!processed) {
             this.onError(context, new HttpException(HttpStatus.NotFound, "404 Not Found"));
         }

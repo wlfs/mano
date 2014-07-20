@@ -13,5 +13,5 @@ package mano;
  * @author jun <jun@diosay.com>
  */
 public interface ServiceContainer {
-    
+    Service getService(String serviceName);
 }

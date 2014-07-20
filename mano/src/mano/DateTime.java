@@ -327,6 +327,10 @@ public class DateTime {
     public String toString(String format) {
         return format(format, this);
     }
+    
+    public String toGMTString() {
+        return format(DateTime.FORMAT_GMT, this);
+    }
 
     public static boolean isLeapYear(int year) throws IllegalArgumentException {
         if (year < 0 || year > 9999) {

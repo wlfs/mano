@@ -163,6 +163,10 @@ public abstract class HttpResponse {
             this.end();
         }
     }
+    private HttpCookie cookie=new HttpCookie();
+    public HttpResponseCookie getCookie(){
+        return cookie;
+    }
 
     /**
      * 将一个字符串写入 HTTP 响应输出流。

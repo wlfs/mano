@@ -8,14 +8,11 @@
 
 package mano.http;
 
-import java.util.Map.Entry;
-import java.util.Set;
-
 /**
  *
  * @author jun <jun@diosay.com>
  */
 public interface HttpRequestCookie {
     String get(String key);
-    Set<Entry<String,String>> entrySet(String key);
+    Iterable<HttpCookie.CookieEntry> iterator();
 }

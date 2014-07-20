@@ -7,6 +7,7 @@
  */
 package mano.http;
 
+import mano.web.HttpSession;
 import mano.web.WebApplication;
 
 /**
@@ -40,4 +41,6 @@ public abstract class HttpContext {
     public abstract HttpResponse getResponse();
     
     public abstract HttpServer getServer();
+    
+    public abstract HttpSession getSession();
 }

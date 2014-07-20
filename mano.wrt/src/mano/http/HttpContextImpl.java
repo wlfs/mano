@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import mano.web.HttpSession;
 
 /**
  * HttpContext的实现
@@ -247,6 +248,11 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
          }
          _writeQueued.clear();*/
 
+    }
+    HttpSession session;
+    @Override
+    public HttpSession getSession() {
+        return session;
     }
 
     /*####################################################*/

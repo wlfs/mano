@@ -19,5 +19,5 @@ public interface ServiceProvider {
      * @param type 一个对象，它指定要获取的服务对象的类型。
      * @return 返回 serviceType 类型的服务对象（如果有），没有则返回 null 。
      */
-    <T> T GetService(Class<T> serviceType);
+    <T> T getService(Class<T> serviceType);
 }

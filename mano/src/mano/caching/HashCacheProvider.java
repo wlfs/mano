@@ -15,6 +15,7 @@ import mano.InvalidOperationException;
 
 /**
  * 通过维护一个 HashMap 来实现的简单缓存提供程序。
+ *
  * @author jun <jun@diosay.com>
  */
 public class HashCacheProvider implements CacheProvider {
@@ -49,7 +50,7 @@ public class HashCacheProvider implements CacheProvider {
         if (entry != null) {
             if (entry.isExpired()) {
                 this.remove(key);
-                
+
                 //call
                 entry = null;
             }
@@ -65,7 +66,37 @@ public class HashCacheProvider implements CacheProvider {
 
     @Override
     public void flush() {
-        
+
+    }
+
+    @Override
+    public Object get(String key, String index) {
+        CacheEntry entry = this.get(key);
+        if (entry == null || entry.getValue() == null || !(entry.getValue() instanceof Map)) {
+            return null;
+        }
+        Map map = (Map) entry.getValue();
+        if (map.containsKey(index)) {
+            return map.get(index);
+        }
+        return null;
+    }
+
+    @Override
+    public boolean contains(String key) {
+        this.get(key);//验证是否过期。
+        return entries.containsKey(key);
+    }
+
+    @Override
+    public boolean set(String key, String index, Object value) {
+        CacheEntry entry = this.get(key);
+        if (entry == null || entry.getValue() == null || !(entry.getValue() instanceof Map)) {
+            return false;
+        }
+        Map map = (Map) entry.getValue();
+        map.put(index, value);
+        return true;
     }
 
     class ItemEntry implements CacheEntry, Entry<String, Object> {

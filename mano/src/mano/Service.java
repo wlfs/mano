@@ -7,6 +7,7 @@
  */
 package mano;
 
+import java.util.Map;
 import mano.util.Logger;
 
 /**
@@ -14,44 +15,39 @@ import mano.util.Logger;
  * @author jun <jun@diosay.com>
  */
 public abstract class Service implements Runnable {
-
-    protected Activator act;
-    protected Logger log;
-    protected String name;
+    private ServiceContainer container;
     
 
-    public Logger getLogger() {
-        return this.log;
+    public void init(ServiceContainer container, Map<String, String> params) {
+        this.container=container;
     }
 
-    public Activator getLoader() {
-        return this.act;
-    }
-
-    public void init(String serviceName, Activator activator, Logger logger) {
-        this.name=serviceName;
-        this.act = activator;
-        this.log = logger;
-    }
+    /*public void init(String serviceName, Activator activator, Logger logger) {
+     this.name=serviceName;
+     this.loader = activator;
+     this.logger = logger;
+     }
     
-    public void param(String name,Object value){
+    public void param(String name, Object value) {
         System.out.println(name + "=" + value);
     }
-    
-    public Object param(String name){
+
+    public Object param(String name) {
         return null;
+    }*/
+
+    public void stop() {
+
     }
 
-    public void stop(){
-        
+    public ServiceContainer getContainer() {
+        return container;
     }
-    
-    public ServiceContainer getContainer(){
-        return null;
-    }
-    
+
+    public abstract String getServiceName();
+
     @Override
-    public String toString(){
-        return this.getClass()+"["+ this.name +"]";
+    public String toString() {
+        return this.getClass() + "[" + getServiceName() + "]";
     }
 }

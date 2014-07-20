@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <services>
+        <service name="cache.service" type="mano.caching.CacheService,mano.wrt"></service>
         <service name="http.service" type="mano.http.HttpService,mano.wrt">
             <params>
                 <param name="config:file">./config.xml</param>

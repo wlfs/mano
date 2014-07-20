@@ -7,6 +7,8 @@
  */
 package mano.web;
 
+import java.util.HashMap;
+import java.util.UUID;
 import mano.caching.CacheProvider;
 
 /**
@@ -16,10 +18,42 @@ import mano.caching.CacheProvider;
 public class HttpSession {
 
     private CacheProvider provider;
-    private static final String COOKIE_KEY = "--MANO$SID--";
+    private String sid;
+    private boolean isnew;
+    public static final String COOKIE_KEY = "MANOSESSIONID";
+
+    protected HttpSession(CacheProvider provider) {
+        this(Integer.toHexString(UUID.randomUUID().hashCode()),provider);
+        isnew=true;
+        this.provider.set(sid, new HashMap<>(), 1000*60*20, true, null);
+    }
+
+    protected HttpSession(String sessionId, CacheProvider provider) {
+        this.sid=sessionId;
+        this.provider=provider;
+    }
+
+    public static HttpSession getSession(String sessionId, CacheProvider provider) {
+        if (sessionId == null || "".equals(sessionId) || !provider.contains(sessionId)) {
+            return new HttpSession(provider);
+        }
+        return new HttpSession(sessionId, provider);
+    }
 
     public String getSessionId() {
-        return "--MANO$SID--";
+        return sid;
+    }
+    
+    public boolean isNewSession(){
+        return isnew;
+    }
+    
+    public void set(String name,Object val){
+        this.provider.set(sid,name, val);
+    }
+    
+    public Object get(String name){
+        return this.provider.get(sid, name);
     }
 
 }

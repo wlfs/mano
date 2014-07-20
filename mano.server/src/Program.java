@@ -12,6 +12,8 @@ import java.util.UUID;
 import java.util.logging.Level;
 import mano.Activator;
 import mano.Service;
+import mano.ServiceContainer;
+import mano.ServiceProvider;
 import mano.logging.Log4jLogger;
 import mano.net.Task;
 import mano.otpl.python.PyViewEngine;
@@ -32,7 +34,28 @@ import org.w3c.dom.NodeList;
  *
  * @author jun
  */
-public class Program {
+public class Program implements ServiceContainer, ServiceProvider {
+
+    @Override
+    public Service getService(String serviceName) {
+        if (serviceName != null && services.containsKey(serviceName)) {
+            return services.get(serviceName);
+        }
+        return null;
+    }
+
+    @Override
+    public <T> T getService(Class<T> serviceType) {
+        if (serviceType == null) {
+            return null;
+        }
+        if (Logger.class.getName().equals(serviceType.getName())) {
+            return (T) logger;
+        } else if (Activator.class.getName().equals(serviceType.getName())) {
+            return (T) loader;
+        }
+        return null;
+    }
 
     public static class test implements Runnable {
 
@@ -103,23 +126,26 @@ public class Program {
         String configPath = Utility.combinePath(bootstrapPath, "server/config.xml").toString();
         XmlHelper helper = XmlHelper.load(configPath);
         NodeList nodes = helper.selectNodes("/configuration/services/service");
-
+        NameValueCollection<String> params;
         for (int i = 0; i < nodes.getLength(); i++) {
             NamedNodeMap attrs = nodes.item(i).getAttributes();
 
             String name = attrs.getNamedItem("name").getNodeValue();
             String type = attrs.getNamedItem("type").getNodeValue();
 
-            Service service = (Service) loader.newInstance(type);
-            service.param("path:bootstrap", this.bootstrapPath);
-            service.param("path:config", configPath);
+            
+            params = new NameValueCollection<>();
+            params.put("path:bootstrap", this.bootstrapPath);
+            params.put("path:config", configPath);
+            params.put("service:name", name);
             NodeList conns = helper.selectNodes(nodes.item(i), "params/param");
+            
             for (int j = 0; j < conns.getLength(); j++) {
                 attrs = conns.item(j).getAttributes();
-                service.param(attrs.getNamedItem("name").getNodeValue(), conns.item(j).getTextContent());
+                params.put(attrs.getNamedItem("name").getNodeValue(), conns.item(j).getTextContent());
             }
-
-            service.init(name, loader, logger);
+            Service service = (Service) loader.newInstance(type);
+            service.init(this, params);//try 
             services.put(name, service);
         }
     }
@@ -137,7 +163,7 @@ public class Program {
     /**
      * @param args the command line arguments:
      * <p>
-     * 
+     *
      * </p>
      */
     public static void main(String[] args) {

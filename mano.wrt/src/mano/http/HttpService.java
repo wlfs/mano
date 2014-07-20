@@ -14,10 +14,14 @@ import java.net.StandardSocketOptions;
 import java.nio.channels.InterruptedByTimeoutException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import mano.Activator;
 import mano.Service;
+import mano.ServiceContainer;
+import mano.ServiceProvider;
+import mano.caching.CacheProvider;
 import mano.io.BufferPool;
 import mano.io.ByteBufferPool;
 import mano.net.AioConnection;
@@ -29,6 +33,7 @@ import mano.util.Pool;
 import mano.util.Utility;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
+import mano.web.HttpSession;
 import mano.web.WebApplication;
 import mano.web.WebApplicationStartupInfo;
 import org.w3c.dom.NamedNodeMap;
@@ -40,7 +45,7 @@ import org.w3c.dom.NodeList;
  *
  * @author jun
  */
-public class HttpService extends Service {
+public class HttpService extends Service implements ServiceProvider {
 
     private ArrayList<String> documents;
     private NameValueCollection<HttpModuleSettings> modules;
@@ -52,6 +57,9 @@ public class HttpService extends Service {
     private Pool<HttpTask> _factory;
     private String bootstrapPath;
     private String configPath;
+    private Activator loader;
+    private Logger logger;
+    private String name;
 
     public HttpService() {
         _factory = new Pool<>(() -> new HttpTask(this));
@@ -76,14 +84,42 @@ public class HttpService extends Service {
         return _factory.get();
     }
 
+    public Logger getLogger() {
+        return this.logger;
+    }
+
+    public Activator getLoader() {
+        return this.loader;
+    }
+
     @Override
     public void stop() {
         super.stop(); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
+    public void init(ServiceContainer container, Map<String, String> params) {
+        super.init(container, null);
+        ServiceProvider provider = (ServiceProvider) container;
+        logger = provider.getService(Logger.class);
+        loader = provider.getService(Activator.class);
+
+        if (params != null) {
+            params.entrySet().stream().forEach(item -> {
+                param(item.getKey(), item.getValue());
+            });
+        }
+
+        try {
+            this.configServices();
+        } catch (XmlException ex) {
+            //ex.printStackTrace();
+            logger.error("", ex);
+        }
+    }
+
     public void init(String serviceName, Activator activator, Logger logger) {
-        super.init(serviceName, activator, logger);
+
         try {
             this.configServices();
         } catch (XmlException ex) {
@@ -184,13 +220,22 @@ public class HttpService extends Service {
             info = appInfos.get("*"); //默认
         }
         if (info != null) {
-            
-            
+
             WebApplication app = info.getInstance();
             if (app != null) {
 
                 context._server = info.getServerInstance();
                 context._application = app;
+
+                //session
+                Service svc = this.getContainer().getService("cache.service");
+                if (svc != null && svc instanceof ServiceProvider) {
+                    CacheProvider provider = ((ServiceProvider) svc).getService(CacheProvider.class);//TODO: 指定实例服务
+                    if (provider != null) {
+                        String sid = context.getRequest().getCookie().get(HttpSession.COOKIE_KEY);
+                        context.session = HttpSession.getSession(sid, provider);
+                    }
+                }
 
                 app.init(context);
                 return true;
@@ -205,7 +250,6 @@ public class HttpService extends Service {
         context.init();
     }
 
-    @Override
     public void param(String name, Object value) {
         String[] arr = Utility.split(name, ":", true);
         if (arr.length > 2) {
@@ -236,6 +280,10 @@ public class HttpService extends Service {
                 } else if ("config".equalsIgnoreCase(arr[1])) {
                     this.configPath = value.toString();
                 }
+            } else if ("service".equalsIgnoreCase(arr[0])) {
+                if ("name".equalsIgnoreCase(arr[1])) {
+                    this.name = value.toString();
+                }
             }
         }
     }
@@ -259,6 +307,24 @@ public class HttpService extends Service {
         } catch (IOException e) {
             this.getLogger().error("mano.http.HttpService.run", e);
         }
+    }
+
+    @Override
+    public String getServiceName() {
+        return this.name;
+    }
+
+    @Override
+    public <T> T getService(Class<T> serviceType) {
+        if (serviceType == null) {
+            return null;
+        }
+        if (Logger.class.getName().equals(serviceType.getName())) {
+            return (T) logger;
+        } else if (Activator.class.getName().equals(serviceType.getName())) {
+            return (T) loader;
+        }
+        return null;
     }
 
     //=========================================================

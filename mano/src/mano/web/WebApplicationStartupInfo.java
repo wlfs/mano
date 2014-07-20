@@ -13,8 +13,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import mano.Activator;
 import mano.Service;
+import mano.ServiceProvider;
 import mano.http.HttpModuleSettings;
 import mano.http.HttpServer;
+import mano.util.Logger;
 import mano.util.NameValueCollection;
 import mano.util.Utility;
 
@@ -47,7 +49,7 @@ public class WebApplicationStartupInfo {
         }
         try {
 
-            Activator loader = new Activator(service.getLoader());
+            Activator loader = new Activator(((ServiceProvider) service).getService(Activator.class));
             try {
                 loader.register(getServerInstance().mapPath("bin"));
             } catch (FileNotFoundException ex) {
@@ -59,15 +61,15 @@ public class WebApplicationStartupInfo {
                 //ignored
             }
 
-            app = (WebApplication) service.getLoader().newInstance(this.type);
+            app = (WebApplication) loader.newInstance(this.type);
             if (app != null) {
-                Method init = WebApplication.class.getDeclaredMethod("init", WebApplicationStartupInfo.class,Activator.class);
+                Method init = WebApplication.class.getDeclaredMethod("init", WebApplicationStartupInfo.class, Activator.class);
                 init.setAccessible(true);
-                init.invoke(app, this,loader);
+                init.invoke(app, this, loader);
                 return app;
             }
         } catch (Exception ex) {
-            service.getLogger().error("WebApplicationStartupInfo.getInstance", ex);
+            ((ServiceProvider) service).getService(Logger.class).error("WebApplicationStartupInfo.getInstance", ex);
         }
         return null;
     }

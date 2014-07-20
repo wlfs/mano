@@ -34,6 +34,7 @@ public abstract class Controller {
     
     private final void setService(RequestService rs){
         service=rs;
+        context=rs.getContext();
     }
 
     protected void view() {
