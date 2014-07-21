@@ -40,23 +40,23 @@ import mano.util.Utility;
  * @author jun <jun@diosay.com>
  */
 public class UrlRouteModule implements HttpModule {
-
+    
     class JarScanner {
-
+        
         private String[] jarFiles;
-
+        
         public void scan(String path) {
             java.io.File dir = new java.io.File(path);
             dir.list(new FilenameFilter() {
-
+                
                 @Override
                 public boolean accept(File tmp, String name) {
                     if (!name.toLowerCase().endsWith(".jar")) {
                         return false;
                     }
-
+                    
                     try {
-                        scan(new URL("jar:file:/" + tmp.toString()+"/"+name + "!/"));
+                        scan(new URL("jar:file:/" + tmp.toString() + "/" + name + "!/"), name.substring(0, name.length() - 4));
                     } catch (MalformedURLException ex) {
                         ex.printStackTrace();
                     }
@@ -64,8 +64,8 @@ public class UrlRouteModule implements HttpModule {
                 }
             });
         }
-
-        public void scan(URL url) {
+        
+        public void scan(URL url, String libname) {
             JarFile jar;
             try {
                 jar = ((JarURLConnection) url.openConnection()).getJarFile();
@@ -78,11 +78,11 @@ public class UrlRouteModule implements HttpModule {
             while (entries.hasMoreElements()) {
                 entry = entries.nextElement();
                 name = entry.getName();
-
+                
                 if (!entry.isDirectory() && name.endsWith(".class") && name.indexOf("$") < 1) {//
                     try {
                         name = (name.substring(0, name.length() - 6)).replace('/', '.');
-                        onFoundClass(Class.forName(name));
+                        onFoundClass(app.getLoader().getClass(name + "," + libname));//Class.forName(name)
                     } catch (ClassNotFoundException ex) {
                         ex.printStackTrace();
                         //ignored
@@ -91,7 +91,7 @@ public class UrlRouteModule implements HttpModule {
             }
         }
         final Pattern pattern = Pattern.compile("\\{\\s*(\\w+)\\s*\\}");
-
+        
         public void onFoundClass(Class<?> clazz) {
 
             //.*/controller/action/(\w*)/(\w*).*
@@ -115,7 +115,7 @@ public class UrlRouteModule implements HttpModule {
             if (Controller.class.isAssignableFrom(clazz)) {
                 mapping = clazz.getAnnotation(UrlMapping.class);
                 if (mapping == null) {
-
+                    
                 } else {
                     url = mapping.value();
                 }
@@ -158,11 +158,11 @@ public class UrlRouteModule implements HttpModule {
                 if (mapping == null) {
                     continue;
                 }
-
+                
                 if (mapping.verb() > 0) {
                     verb = mapping.verb(); //重写父级定义
                 }
-
+                
                 part = mapping.value();
                 if (part == null || "".equals(part)) {
                     part = method.getName();
@@ -170,12 +170,12 @@ public class UrlRouteModule implements HttpModule {
                 if (part.startsWith("/")) {
                     part = part.substring(1);
                 }
-
+                
                 list.clear();
                 sb.setLength(0);
                 sb.append(url);
                 sb.append(part);
-
+                
                 while (matcher.find()) {
                     String name = matcher.group(1);
                     list.add(name);
@@ -215,7 +215,7 @@ public class UrlRouteModule implements HttpModule {
                         break;
                     }
                 }
-
+                
                 route = new Route();
                 method.setAccessible(true);
                 route.call = method;
@@ -232,12 +232,12 @@ public class UrlRouteModule implements HttpModule {
             //clazz.getInterfaces()
             System.out.println(clazz);
         }
-
+        
     }
     ViewEngine viewEngine;
-
+    
     class Route {
-
+        
         Class<?> clazz;
         boolean isPOJO;
         String patten;
@@ -248,16 +248,18 @@ public class UrlRouteModule implements HttpModule {
         int httpMethod;
         Map<Integer, String> paramsMapping = new HashMap<>();
     }
-
+    
     Set<Route> RouteTable = new LinkedHashSet<>();
+    WebApplication app;
 
     @Override
     public void init(WebApplication app, Map<String, String> params) {
         //controllers scanning
         //UrlRouteModule.class.getPackage().
+        this.app = app;
         JarScanner js = new JarScanner();
         js.scan(Utility.combinePath(app.getApplicationPath(), "bin").toString());
-
+        
         for (Entry<String, String> item : params.entrySet()) {
             if ("viewengine".equalsIgnoreCase(item.getKey())) {
                 try {
@@ -271,36 +273,36 @@ public class UrlRouteModule implements HttpModule {
                 viewEngine.setViewdir(Utility.combinePath(app.getApplicationPath(), "views").toString());
             }
         }
-
+        
     }
-
+    
     @Override
     public boolean handle(HttpContext context) {
         return this.handle(context, context.getRequest().url().getPath());
     }
-
+    
     public String field = "i am is a field";
     public String oprop = "i am is a auto property";
-
+    
     public String getProp() {
         return "i am is a property(getProp())";
     }
-
+    
     public int addTest(int a, int b) {
         return a + b;
     }
-
+    
     @Override
     public boolean handle(HttpContext context, String tryPath) {
         Pattern test;
         Matcher matcher;
-
+        
         RequestService rs = null;
         for (Route route : RouteTable) {//TODO: 测试未考虑效率
             test = Pattern.compile(route.patten);
             matcher = test.matcher(tryPath);
             if (matcher.matches()) {
-
+                
                 Object[] params = new Object[route.call.getParameterCount()];
                 Class<?>[] types = route.call.getParameterTypes();
                 try {
@@ -331,7 +333,7 @@ public class UrlRouteModule implements HttpModule {
                     //Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-
+            
         }
         if (rs == null) {
             return false;
@@ -343,12 +345,12 @@ public class UrlRouteModule implements HttpModule {
         if (result instanceof ViewResult) {
             ((ViewResult) result).init(viewEngine);
         }
-
+        
         rs.set("title", "hello");
         rs.set("title", "OPTL-IL TEST");
         rs.set("obj", this);
         rs.set("list", new String[]{"abx", "fttf"});
-
+        
         result.execute(rs);
 
         /*rs.setResult(new ViewResult().init(viewEngine));
@@ -366,10 +368,10 @@ public class UrlRouteModule implements HttpModule {
          }*/
         return true;
     }
-
+    
     @Override
     public void dispose() {
         //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
-
+    
 }

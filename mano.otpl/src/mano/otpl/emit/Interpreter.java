@@ -55,7 +55,7 @@ public class Interpreter {
     static final String NULL = "[!--SYS-TYPE--$null]";
     OtplViewEngine.OutProxy environment;
 
-    public static void main(String[] args) {
+    /*public static void main(String[] args) {
         EmitParser.mains(args);
         Interpreter interpreter = new Interpreter();
         try {
@@ -66,7 +66,7 @@ public class Interpreter {
             Logger.getLogger(Interpreter.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    /*
+    
      public String field = "i am is a field";
      public String oprop = "i am is a auto property";
 

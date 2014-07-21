@@ -102,8 +102,11 @@ public class Program implements ServiceContainer, ServiceProvider {
         logger = new Log4jLogger();
         loader = new Activator();
         bootstrapPath = System.getProperty("user.dir");
-        loader.register(Utility.combinePath(bootstrapPath, "dist").toString());
-        loader.register(Utility.combinePath(bootstrapPath, "dist/lib").toString());
+        try {
+            loader.register(Utility.combinePath(bootstrapPath, "lib").toString());
+        } catch (Exception ignored) {
+            
+        }
 
         /*Program me=this;
          factory = new CachedObjectFactory<>(new ObjectFactory<test>(){
@@ -131,13 +134,12 @@ public class Program implements ServiceContainer, ServiceProvider {
             String name = attrs.getNamedItem("name").getNodeValue();
             String type = attrs.getNamedItem("type").getNodeValue();
 
-            
             params = new NameValueCollection<>();
             params.put("path:bootstrap", this.bootstrapPath);
             params.put("path:config", configPath);
             params.put("service:name", name);
             NodeList conns = helper.selectNodes(nodes.item(i), "params/param");
-            
+
             for (int j = 0; j < conns.getLength(); j++) {
                 attrs = conns.item(j).getAttributes();
                 params.put(attrs.getNamedItem("name").getNodeValue(), conns.item(j).getTextContent());

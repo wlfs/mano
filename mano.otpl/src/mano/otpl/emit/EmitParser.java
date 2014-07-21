@@ -33,38 +33,37 @@ import mano.util.Utility;
  */
 public class EmitParser extends Parser {
 
-    public static void mains(String[] args) {
-        EmitParser parser = new EmitParser();
-        /*Object t = paraser.parseExpr("123.56", 0);//13
-         System.out.println(t);*/
-        //http://java.chinaitlab.com/base/922270.html
+    /*public static void mains(String[] args) {
+     EmitParser parser = new EmitParser();
+     //Object t = paraser.parseExpr("123.56", 0);//13
+     //System.out.println(t);
+     //http://java.chinaitlab.com/base/922270.html
 
-        try {
-            parser.open("E:\\repositories\\java\\mano\\mano.server\\server\\wwwroot\\views\\tpl\\member.tpl.html");
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(Parser.class.getName()).log(Level.SEVERE, null, ex);
-            return;
-        }
-        try {
+     try {
+     parser.open("E:\\repositories\\java\\mano\\mano.server\\server\\wwwroot\\views\\tpl\\member.tpl.html");
+     } catch (FileNotFoundException ex) {
+     Logger.getLogger(Parser.class.getName()).log(Level.SEVERE, null, ex);
+     return;
+     }
+     try {
 
-            String path = "E:\\repositories\\java\\mano\\mano.server\\server\\tmp\\";
-            String name = Integer.toHexString(parser.getSourceName().hashCode()) + ".il";
-            File file = new File(path + name);
-            if (file.exists()) {
-                file.delete();
-            }
-            file.createNewFile();
-            FileOutputStream fs = new FileOutputStream(file);
-            //OutputStreamWriter write = new OutputStreamWriter(fs, "UTF-8");
-            parser.parse();
-            parser.compile(fs);
-            fs.close();
-        } catch (IOException ex) {
-            Logger.getLogger(Parser.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        System.out.println("compiling done");
-    }
-
+     String path = "E:\\repositories\\java\\mano\\mano.server\\server\\tmp\\";
+     String name = Integer.toHexString(parser.getSourceName().hashCode()) + ".il";
+     File file = new File(path + name);
+     if (file.exists()) {
+     file.delete();
+     }
+     file.createNewFile();
+     FileOutputStream fs = new FileOutputStream(file);
+     //OutputStreamWriter write = new OutputStreamWriter(fs, "UTF-8");
+     parser.parse();
+     parser.compile(fs);
+     fs.close();
+     } catch (IOException ex) {
+     Logger.getLogger(Parser.class.getName()).log(Level.SEVERE, null, ex);
+     }
+     System.out.println("compiling done");
+     }*/
     @Override
     public void parse() throws IOException {
         this.parseParent(null);
@@ -115,22 +114,22 @@ public class EmitParser extends Parser {
         if (node == null || node.mark) {
             return;
         }
-        cnode=node;
+        cnode = node;
         if (node.isBlock()) {
-            parseBlock((Block) node,null,null);
+            parseBlock((Block) node, null, null);
         } else {
-            parseSpan((Span) node,null,null);
+            parseSpan((Span) node, null, null);
         }
     }
-    
+
     public void parse(Node node, OpCode loop_start, OpCode loop_end) {
         if (node == null || node.mark) {
             return;
         }
-        cnode=node;
+        cnode = node;
         if (node.isBlock()) {
             parseBlock((Block) node, loop_start, loop_end);
-            
+
         } else {
             parseSpan((Span) node, loop_start, loop_end);
         }
@@ -783,14 +782,14 @@ public class EmitParser extends Parser {
             code.setAdress(this.newAddress());
         }
     }
-    
-    public void compile(String source,String target) throws IOException {
+
+    public void compile(String source, String target) throws IOException {
         java.io.FileInputStream in = new java.io.FileInputStream(source);
         reader = new java.io.BufferedReader(new java.io.InputStreamReader(in));
         filename = source;
         this.parse();
         in.close();
-        
+
         java.io.FileOutputStream out = new java.io.FileOutputStream(target);
         this.compile(out);
         out.close();
