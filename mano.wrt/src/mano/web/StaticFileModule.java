@@ -41,7 +41,9 @@ public class StaticFileModule implements HttpModule {
     }
 
     private boolean process(HttpContext context, String path, String mime) {
-        System.out.println(path);
+
+        context.getApplication().getLogger().trace("process static path:" + path);
+
         File file = new File(path);
         if (!file.exists() || !file.isFile()) {
             return false;
@@ -68,7 +70,7 @@ public class StaticFileModule implements HttpModule {
             } else {
                 context.getResponse().setHeader("Cache-Control", "private");
                 context.getResponse().setHeader("ETag", "\"" + etag + ":0\"");
-                context.getResponse().setHeader("Last-Modified", DateTime.format(DateTime.FORMAT_GMT, file.lastModified()));
+                context.getResponse().setHeader("Last-Modified", new DateTime(file.lastModified()).toGMTString());
                 context.getResponse().transmit(path);
             }
             //ETag: "50b1c1d4f775c61:df3" 
@@ -76,8 +78,8 @@ public class StaticFileModule implements HttpModule {
 
         } catch (IOException | InvalidOperationException | NullPointerException ex) {
             context.getResponse().write(ex.getMessage());
+            context.getResponse().end();
         }
-        context.getResponse().end();
 
         return true;
     }

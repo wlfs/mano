@@ -101,7 +101,7 @@ public class AioConnection extends Connection {
         } catch (IOException ignored) {
             //igored
         }
-        
+
         if (task != null) {
             task.fire(this, Task.EVENT_CLOSED, this, null, null, 0);
         }
@@ -156,13 +156,22 @@ public class AioConnection extends Connection {
                 _proxy = new TransferProxy(this);
             }
             AioConnection me = this;
-            ThreadPool.execute(new Runnable() { //TODO:线程池
+            new Thread(new Runnable() { //TODO:线程池ThreadPool.execute(
 
                 @Override
                 public void run() {
                     long result = 0;
                     try {
                         result = msg.channel().transferTo(msg.position(), msg.length(), _proxy);
+                        
+                        
+                        if(result!=msg.length()){
+                            throw new IOException("数据传输不完整");
+                        }
+                        //else{
+                        //    System.out.println("write file:" + result);
+                        //}
+                        
                     } catch (IOException ex) {
                         msg.fire(this, Task.EVENT_ERROR, me, null, ex, result);
                         return;
@@ -170,11 +179,11 @@ public class AioConnection extends Connection {
                     msg.fire(this, Task.EVENT_WRITTEN, me, null, null, result);
                 }
 
-            });
+            }).start();
         } else {
             SentHandler handler = new SentHandler();
             handler.bind(this, null);
-            if (!this.connected()) {
+            if (!this.isConnected()) {
                 msg.fire(this, Task.EVENT_ERROR, this, null, new IOException("conn was closed"), 0);
             } else {
                 _client.write(msg.buffer(), msg.timeout(), TimeUnit.MILLISECONDS, msg, handler);
@@ -183,7 +192,7 @@ public class AioConnection extends Connection {
     }
 
     @Override
-    public boolean connected() {
+    public boolean isConnected() {
         if (_mode == MODE_SERVER) {
             return _server.isOpen();
         }
@@ -230,7 +239,7 @@ public class AioConnection extends Connection {
 
             try {
                 Future<Integer> result = _client.read(dst);
-                return result.get(1000 * 30, TimeUnit.MILLISECONDS);
+                return result.get(1000 * 5, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException ex) {
                 throw new IOException(ex.getMessage(), ex);
             }
@@ -238,7 +247,7 @@ public class AioConnection extends Connection {
 
         @Override
         public boolean isOpen() {
-            return _conn.connected();
+            return _conn.isConnected();
         }
 
         @Override
@@ -251,7 +260,7 @@ public class AioConnection extends Connection {
 
             try {
                 Future<Integer> result = _client.write(src);
-                return result.get(1000 * 30, TimeUnit.MILLISECONDS);
+                return result.get(1000 * 5, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException ex) {
                 throw new IOException(ex.getMessage(), ex);
             }

@@ -11,6 +11,7 @@ import java.io.FileNotFoundException;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.regex.Pattern;
 import mano.Activator;
 import mano.Service;
 import mano.ServiceProvider;
@@ -39,6 +40,14 @@ public class WebApplicationStartupInfo {
     private WebApplication app;
     private HttpServer server;
     public String version = "ManoServer/1.1";
+    private Pattern hostreg;
+
+    public boolean matchHost(String hostname) {
+        if (hostreg == null) {
+            hostreg = Pattern.compile("^" + host.replace("*", "[\\w\\-_\\.]+") + "$");
+        }
+        return hostreg.matcher(hostname).matches();
+    }
 
     public synchronized WebApplication getInstance() {
         if (app != null) {

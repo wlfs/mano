@@ -215,7 +215,14 @@ public class HttpService extends Service implements ServiceProvider {
 
     boolean handle(HttpContextImpl context) {
         WebApplicationStartupInfo info = null;
-        info = appInfos.get(context.getRequest().headers().get("Host").value());
+        String host = context.getRequest().headers().get("Host").value();
+        for (WebApplicationStartupInfo i : appInfos.values()) {
+            if (i.matchHost(host)) {
+                info = i;
+                break;
+            }
+        }
+        //info = appInfos.get(context.getRequest().headers().get("Host").value());
         if (info == null) {
             info = appInfos.get("*"); //默认
         }
@@ -297,7 +304,7 @@ public class HttpService extends Service implements ServiceProvider {
                 if (info.disabled) {
                     continue;
                 }
-                conn = new AioConnection(info.address, Executors.newFixedThreadPool(10));
+                conn = new AioConnection(info.address, Executors.newCachedThreadPool());
                 conn.setOption(StandardSocketOptions.SO_REUSEADDR, true);
                 conn.bind(100);
                 conn.accept(_factory.get());
@@ -344,12 +351,14 @@ public class HttpService extends Service implements ServiceProvider {
 
         @Override
         public void dispose() {
-            /*return;
-             if (!this.cancelDisposing) {
-             return;
-             }
-             super.dispose();*/
+
+            if (!this.cancelDisposing) {
+                return;
+            }
+            super.dispose();/*return;*/
+
             //service._factory.put(this);
+
         }
 
         @Override
@@ -369,9 +378,10 @@ public class HttpService extends Service implements ServiceProvider {
 
             //TODO: 服务器异常检测
             this.cancelDisposing = true;//重复使用当前对象
+            Connection conn = accept();
             this.connect().accept(this);
 
-            service.context(accept());
+            service.context(conn);
         }
 
         private HttpContextImpl getContext() {
@@ -380,7 +390,7 @@ public class HttpService extends Service implements ServiceProvider {
             }
             HttpContextImpl context = (HttpContextImpl) attachment();
 
-            if (context == null || context.disposed || !this.connect().connected()) {
+            if (context == null || context.disposed || !this.connect().isConnected()) {
                 return null;
             }
             return context;
@@ -459,6 +469,7 @@ public class HttpService extends Service implements ServiceProvider {
                 if (connect().hasWriteTaskQueued()) {
                     connect().flush();
                 } else if (context.closedFlag.get()) {
+                    //System.out.println("call complete:");
                     context.complete();
                 }
             }

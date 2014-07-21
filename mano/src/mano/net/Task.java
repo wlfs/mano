@@ -38,7 +38,7 @@ public abstract class Task implements Resettable, Disposable, Callable<Integer> 
     public final static int OP_TRANS = 128;
     public final static int OP_FLUSH = 256;
     public final static int OP_CLOSE = 512;
-    static int TIMEOUT = 300000;
+    static int TIMEOUT = 1000 * 5;
     private volatile Connection _conn;
     private volatile Connection _accept;
     private volatile Throwable _lastException;
@@ -259,6 +259,7 @@ public abstract class Task implements Resettable, Disposable, Callable<Integer> 
         this._channel = null;
         try {
             this._handle.release(this);
+            
         } catch (Exception ex) {
             //
         }
@@ -291,14 +292,15 @@ public abstract class Task implements Resettable, Disposable, Callable<Integer> 
         //this.dispose();
         //ThreadPool.submit(this);
         /*Future<Task> f = ThreadPool.submit(this);
-        try {
-            f.get().dispose();
-        } catch (Exception ex) {
-            this.dispose();
-            ex.printStackTrace();
-        }*/
+         try {
+         f.get().dispose();
+         } catch (Exception ex) {
+         this.dispose();
+         ex.printStackTrace();
+         }*/
 
     }
+
     public Task callr() {
         switch (this.opt) {
             case EVENT_ACCEPTED:
@@ -322,12 +324,11 @@ public abstract class Task implements Resettable, Disposable, Callable<Integer> 
         }
         return this;
     }
-    
+
     @Override
-    public Integer call(){
-        
+    public Integer call() {
+
         //GenericObjectPool pool;
-        
         this.dispose();
         return 0;
     }

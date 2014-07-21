@@ -18,6 +18,8 @@ import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import mano.InvalidOperationException;
 import mano.util.ObjectFactory;
 import mano.util.SafeHandle;
@@ -28,26 +30,27 @@ import mano.util.SafeHandle;
  * @author jun <jun@diosay.com>
  */
 public abstract class Connection {
+
     private volatile long time;
-    
-    protected synchronized void update(){
-        time=Calendar.getInstance().getTime().getTime();
+
+    protected synchronized void update() {
+        time = Calendar.getInstance().getTime().getTime();
     }
-    
-    public boolean vod(){
-        if(Calendar.getInstance().getTime().getTime()-time>300000){
+
+    public boolean vod() {
+        if (Calendar.getInstance().getTime().getTime() - time > 300000) {
             return false;
         }
         return true;
     }
-    
+
     protected abstract void closeImpl(Task task);
 
     public synchronized void close(boolean forcibly, Task task) throws InvalidOperationException {
         if (forcibly) {
-            closeImpl(task!=null?task.close():null);
+            closeImpl(task != null ? task.close() : null);
         } else {
-            if(task==null){
+            if (task == null) {
                 throw new IllegalArgumentException("task");
             }
             this._writeQueued.offer(task.close());
@@ -63,7 +66,7 @@ public abstract class Connection {
 
     public abstract SocketAddress getRemoteAddress() throws IOException;
 
-    public abstract boolean connected();
+    public abstract boolean isConnected();
 
     /**
      * 创建一个新的客户连接。
@@ -112,7 +115,7 @@ public abstract class Connection {
     public synchronized boolean read(Task task) {
         if (task == null) {
             throw new NullPointerException();
-        } else if (!this.connected()) {
+        } else if (!this.isConnected()) {
             return false;
         } else if (task.tryLock(readHandle)) {
             try {
@@ -144,7 +147,6 @@ public abstract class Connection {
 
     final Queue<Task> _writeQueued = new LinkedBlockingQueue<>();
 
-    
     public synchronized boolean hasWriteTaskQueued() {
         return !_writeQueued.isEmpty();
     }
@@ -157,28 +159,40 @@ public abstract class Connection {
         this.flush();
     }
 
-    public void flush() {
+    public synchronized void flush() {
         if (_writeQueued.isEmpty()) {
             return;
         }
 
         Task task = _writeQueued.peek();
-        if (task!=null && task.tryLock(writeHandle)) {
+        if (task != null && task.tryLock(writeHandle)) {
             if (task.operation() == Task.OP_FLUSH) {
-                task=_writeQueued.poll();
+                _writeQueued.poll();
                 task.fire(this, Task.EVENT_FLUSH, this, null, null, 0);
-                task.dispose();
+                task = null;
             } else if (task.operation() == Task.OP_CLOSE) {
-                this.closeImpl(_writeQueued.poll());
+                _writeQueued.poll();
+                this.closeImpl(task);
+                task = null;
             } else {
                 try {
                     writeImpl(task);
                     _writeQueued.poll();
+                    task = null;
                 } catch (WritePendingException ex) {
                     //ignored errors
                     writeHandle.release(task);
                 }
             }
+        }
+        if (task != null) { //重复处理上步处理失败的任务
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException ex) {
+                //igored
+                return;
+            }
+            this.flush();
         }
     }
 

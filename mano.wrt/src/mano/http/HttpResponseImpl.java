@@ -206,6 +206,7 @@ final class HttpResponseImpl extends HttpResponse {
 
     @Override
     public synchronized void end() {
+        //System.out.println("call end:");
         this._endFlush = true;
         this.flush();
         this._context.end();

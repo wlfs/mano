@@ -138,7 +138,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
         completed = true;
         String req_conn = req._headers.containsKey("Connection") ? req._headers.get("Connection").value().trim() : "keep-alive";
         String rsp_conn = rsp.headers.containsKey("Connection") ? rsp.headers.get("Connection").value().trim() : "keep-alive";
-        if ("keep-alive".equalsIgnoreCase(req_conn) && "keep-alive".equalsIgnoreCase(rsp_conn) && conn.connected()) {//Keep-Alive: timeout=5, max=100 Connection: keep-alive
+        if ("keep-alive".equalsIgnoreCase(req_conn) && "keep-alive".equalsIgnoreCase(rsp_conn) && conn.isConnected()) {//Keep-Alive: timeout=5, max=100 Connection: keep-alive
             service.context(conn);
         } else {
             this.close();
