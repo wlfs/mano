@@ -21,7 +21,7 @@ import mano.otpl.python.PyParaser;
 import mano.otpl.python.PyParaser;
 import mano.web.RequestService;
 import mano.web.ViewEngine;
-import org.python.util.PythonInterpreter;
+//import org.python.util.PythonInterpreter;
 
 /**
  *
@@ -82,9 +82,9 @@ public class PyViewEngine extends ViewEngine {
             }
             proxy.init(service.getContext());
             for (Entry<String, Object> entry : service.getEntries()) {
-                proxy.interpreter.set(entry.getKey(), entry.getValue());
+                //proxy.interpreter.set(entry.getKey(), entry.getValue());
             }
-            proxy.interpreter.execfile(tmpName);
+            //proxy.interpreter.execfile(tmpName);
             proxy.reset();
             queued.offer(proxy);
         } catch (Exception ex) {
@@ -102,20 +102,20 @@ public class PyViewEngine extends ViewEngine {
         
         HttpContext context;
         StringBuilder sb;
-        PythonInterpreter interpreter;
+        //PythonInterpreter interpreter;
         
         public void init(HttpContext hc) {
             context = hc;
             sb = new StringBuilder();
-            interpreter = new PythonInterpreter();
-            interpreter.setOut(this);
-            interpreter.setErr(this);
+            //interpreter = new PythonInterpreter();
+            //interpreter.setOut(this);
+            //interpreter.setErr(this);
         }
         
         public void reset() {
             context = null;
             sb.setLength(0);
-            interpreter.cleanup();
+            //interpreter.cleanup();
         }
         
         @Override

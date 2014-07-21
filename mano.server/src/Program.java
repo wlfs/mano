@@ -25,8 +25,6 @@ import mano.util.ThreadPool;
 import mano.util.Utility;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
-import org.python.core.*;
-import org.python.util.PythonInterpreter;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.NodeList;
 
