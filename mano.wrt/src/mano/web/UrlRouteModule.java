@@ -7,6 +7,8 @@
  */
 package mano.web;
 
+import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
@@ -43,14 +45,27 @@ public class UrlRouteModule implements HttpModule {
 
         private String[] jarFiles;
 
-        public void scan() {
-            URL url;
-            try {
-                url = new URL("jar:file:/E:/repositories/java/mano/testapp/dist/testapp.jar!/");
-            } catch (MalformedURLException ex) {
-                ex.printStackTrace();
-                return;
-            }
+        public void scan(String path) {
+            java.io.File dir = new java.io.File(path);
+            dir.list(new FilenameFilter() {
+
+                @Override
+                public boolean accept(File tmp, String name) {
+                    if (!name.toLowerCase().endsWith(".jar")) {
+                        return false;
+                    }
+
+                    try {
+                        scan(new URL("jar:file:/" + tmp.toString()+"/"+name + "!/"));
+                    } catch (MalformedURLException ex) {
+                        ex.printStackTrace();
+                    }
+                    return false;
+                }
+            });
+        }
+
+        public void scan(URL url) {
             JarFile jar;
             try {
                 jar = ((JarURLConnection) url.openConnection()).getJarFile();
@@ -63,7 +78,7 @@ public class UrlRouteModule implements HttpModule {
             while (entries.hasMoreElements()) {
                 entry = entries.nextElement();
                 name = entry.getName();
-                
+
                 if (!entry.isDirectory() && name.endsWith(".class") && name.indexOf("$") < 1) {//
                     try {
                         name = (name.substring(0, name.length() - 6)).replace('/', '.');
@@ -237,11 +252,11 @@ public class UrlRouteModule implements HttpModule {
     Set<Route> RouteTable = new LinkedHashSet<>();
 
     @Override
-    public void init(@RequestParam("") WebApplication app, Map<String, String> params) {
+    public void init(WebApplication app, Map<String, String> params) {
         //controllers scanning
         //UrlRouteModule.class.getPackage().
         JarScanner js = new JarScanner();
-        js.scan();
+        js.scan(Utility.combinePath(app.getApplicationPath(), "bin").toString());
 
         for (Entry<String, String> item : params.entrySet()) {
             if ("viewengine".equalsIgnoreCase(item.getKey())) {
