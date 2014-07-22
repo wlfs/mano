@@ -7,23 +7,42 @@
  */
 package mano.logging;
 
-import mano.util.Logger;
+import java.io.FileNotFoundException;
+import java.util.logging.Level;
+import mano.util.logging.ILogger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 /**
  *
  * @author jun
  */
-public class Log4jLogger implements Logger {
+public class Log4jLogger implements ILogger {
 
-    org.apache.logging.log4j.Logger logger;
+    Logger logger;
 
     public Log4jLogger() {
-        logger = org.apache.logging.log4j.LogManager.getLogger();
+        //java.util.logging.LogManager.getLogManager().
+        //PropertyConfigurator.configure("log4j.xml");
+        //new org.apache.logging.log4j.simple.SimpleLogger();
+        //org.apache.logging.log4j.LogManager.getLogger(null)
+        logger =org.apache.logging.log4j.status.StatusLogger.getLogger();
+        
+        //org.apache.log4j.ConsoleAppender
+
+    }
+    public Log4jLogger(Class<?> clazz) {
+
+        //PropertyConfigurator.configure("log4j.xml");
+        //new org.apache.logging.log4j.simple.SimpleLogger();
+        //org.apache.logging.log4j.LogManager.getLogger(null)
+        logger =org.apache.logging.log4j.status.StatusLogger.getLogger();
+//logger = LogManager.getLogger(clazz);
         //org.apache.log4j.ConsoleAppender
 
     }
 
-    @Override
+    /*@Override
     public boolean isInfoEnabled() {
         return logger.isInfoEnabled();
     }
@@ -123,5 +142,25 @@ public class Log4jLogger implements Logger {
     @Override
     public void warnFormat(String format, Object... args) {
         logger.warn(format, args);
+    }*/
+
+    @Override
+    public boolean isEnabled(int level) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void log(int level, Object obj) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void log(int level, String format, Object... args) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void log(int level, String message, Throwable t) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

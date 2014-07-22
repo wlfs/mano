@@ -16,14 +16,13 @@ import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import mano.http.HttpContext;
 import mano.otpl.emit.EmitParser;
 import mano.otpl.emit.Interpreter;
 import mano.otpl.emit.OpCode;
 import mano.util.LinkedMap;
 import mano.util.Utility;
+import mano.util.logging.Logger;
 import mano.web.RequestService;
 import mano.web.ViewEngine;
 
@@ -41,7 +40,8 @@ public class OtplViewEngine extends ViewEngine {
         try {
             parser.open(tplName);
         } catch (FileNotFoundException ex) {
-            Logger.getLogger(OtplViewEngine.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.error(null, ex);
+            
         }
 
         try {
@@ -60,7 +60,7 @@ public class OtplViewEngine extends ViewEngine {
             parser.compile(fs);
             fs.close();
         } catch (Exception ex) {
-            ex.printStackTrace();
+            Logger.error(null, ex);
             //Logger.getLogger(Paraser.class.getName()).log(Level.SEVERE, null, ex);
         }
         return tplName;
@@ -112,17 +112,19 @@ public class OtplViewEngine extends ViewEngine {
             interpreter.setOut(proxy);
             interpreter.exec(target_file.toString());
         } catch (Exception ex) {
+            Logger.error(null, ex);
             try {
                 service.getContext().getResponse().write(ex.getMessage());
                 //PrintStream ps=new PrintStream(proxy,true);
                 //ex.printStackTrace(ps);
                 //ps.flush();
                 //ps.close();
+                
             } catch (Exception e) {
                 //
-                e.printStackTrace();
+                Logger.error(null, e);
             }
-            Logger.getLogger(OtplViewEngine.class.getName()).log(Level.SEVERE, null, ex);
+            //Logger.getLogger(OtplViewEngine.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

@@ -14,13 +14,14 @@ import mano.Activator;
 import mano.Service;
 import mano.ServiceContainer;
 import mano.ServiceProvider;
-import mano.logging.Log4jLogger;
 import mano.net.Task;
 import mano.otpl.python.PyViewEngine;
 import mano.util.CachedObjectFactory;
-import mano.util.Logger;
+import mano.util.logging.Logger;
+import mano.util.logging.ILogger;
 import mano.util.NameValueCollection;
 import mano.util.ObjectFactory;
+import mano.util.ProviderMapper;
 import mano.util.ThreadPool;
 import mano.util.Utility;
 import mano.util.xml.XmlException;
@@ -47,7 +48,7 @@ public class Program implements ServiceContainer, ServiceProvider {
         if (serviceType == null) {
             return null;
         }
-        if (Logger.class.getName().equals(serviceType.getName())) {
+        if (ILogger.class.getName().equals(serviceType.getName())) {
             return (T) logger;
         } else if (Activator.class.getName().equals(serviceType.getName())) {
             return (T) loader;
@@ -92,20 +93,20 @@ public class Program implements ServiceContainer, ServiceProvider {
         }
     }
 
-    Logger logger;
+    ILogger logger;
     Activator loader;
     NameValueCollection<Service> services;
     CachedObjectFactory<test> factory;
     String bootstrapPath;
 
     private void init() throws FileNotFoundException {
-        logger = new Log4jLogger();
+
         loader = new Activator();
         bootstrapPath = System.getProperty("user.dir");
         try {
             loader.register(Utility.combinePath(bootstrapPath, "lib").toString());
         } catch (Exception ignored) {
-            
+
         }
 
         /*Program me=this;
@@ -126,10 +127,35 @@ public class Program implements ServiceContainer, ServiceProvider {
         services = new NameValueCollection<>();
         String configPath = Utility.combinePath(bootstrapPath, "server/config.xml").toString();
         XmlHelper helper = XmlHelper.load(configPath);
-        NodeList nodes = helper.selectNodes("/configuration/services/service");
+        NamedNodeMap attrs;
+        NodeList nodes = helper.selectNodes("/configuration/provider.mapping/map/depend");
+        for (int i = 0; i < nodes.getLength(); i++) {
+            attrs = nodes.item(i).getAttributes();
+            try {
+                //LogManager.getLogger();
+                ProviderMapper.addPath(Utility.combinePath(bootstrapPath, attrs.getNamedItem("path").getNodeValue()).toString());
+            } catch (Exception ignored) {
+                ignored.printStackTrace();
+            }
+        }
+        nodes = helper.selectNodes("/configuration/provider.mapping/map");
+        for (int i = 0; i < nodes.getLength(); i++) {
+            attrs = nodes.item(i).getAttributes();
+            try {
+                ProviderMapper.map(attrs.getNamedItem("name").getNodeValue(), attrs.getNamedItem("type").getNodeValue(), attrs.getNamedItem("path").getNodeValue());
+            } catch (Exception ex) {
+                //logger.error("config:provider.mapping", ex);
+                ex.printStackTrace();
+            }
+        }
+
+        
+        logger = Logger.getLogger(Logger.class.getName());
+
+        nodes = helper.selectNodes("/configuration/services/service");
         NameValueCollection<String> params;
         for (int i = 0; i < nodes.getLength(); i++) {
-            NamedNodeMap attrs = nodes.item(i).getAttributes();
+            attrs = nodes.item(i).getAttributes();
 
             String name = attrs.getNamedItem("name").getNodeValue();
             String type = attrs.getNamedItem("type").getNodeValue();
@@ -155,7 +181,7 @@ public class Program implements ServiceContainer, ServiceProvider {
             try {
                 Thread.sleep(1000 * 1000);
             } catch (InterruptedException e) {
-                this.logger.error("", e);
+                Logger.error("", e);
             }
         }
     }
@@ -182,7 +208,7 @@ public class Program implements ServiceContainer, ServiceProvider {
             server.loop();
 
         } catch (Exception ex) {
-            server.logger.error("", ex);
+            Logger.error("", ex);
         }
     }
 

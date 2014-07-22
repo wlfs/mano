@@ -26,14 +26,13 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import mano.http.HttpContext;
 import mano.http.HttpModule;
 import mano.util.Utility;
+import mano.util.logging.Logger;
 
 /**
  *
@@ -265,9 +264,9 @@ public class UrlRouteModule implements HttpModule {
                 try {
                     viewEngine = (ViewEngine) app.getLoader().newInstance(item.getValue());
                 } catch (InstantiationException ex) {
-                    Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.error(null, ex);
                 } catch (ClassNotFoundException ex) {
-                    Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.error(null, ex);
                 }
                 viewEngine.setTempdir(Utility.combinePath(app.getApplicationPath(), "data/tmp").toString());
                 viewEngine.setViewdir(Utility.combinePath(app.getApplicationPath(), "views").toString());
@@ -329,6 +328,7 @@ public class UrlRouteModule implements HttpModule {
                     route.call.invoke(obj, params);
                 } catch (Exception ex) {
                     context.getResponse().write(ex.getClass() + ":" + ex.getMessage());
+                    Logger.debug("call route handler", ex);
                     return true;
                     //Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
                 }

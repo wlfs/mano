@@ -70,27 +70,33 @@ public final class Activator {
         return this;
     }
 
-    public synchronized Activator loadAll(String path) throws FileNotFoundException {
+    public synchronized Activator loadAll(String path) throws FileNotFoundException, MalformedURLException {
         File file = new File(path);
         if (!file.exists()) {
             throw new FileNotFoundException(path);
         }
-        if (!file.isDirectory()) {
-            throw new UnsupportedOperationException("不是一个有效的路径。path:" + path);
-        }
-
         final Set<URL> set = new HashSet<>();
         final Set<String> urls = new HashSet<>();
-        file.listFiles((File f) -> {//java 8
-            if (f.isFile() && f.getName().toLowerCase().endsWith("jar")) {
-                try {
-                    urls.add(f.getAbsolutePath());
-                    set.add(f.toURI().toURL());
-                } catch (MalformedURLException e) {
-                }
+        if (!file.isDirectory()) {
+            if (file.getName().toLowerCase().endsWith(".jar")) {
+                throw new UnsupportedOperationException("不是一个有效的jar文件。filename:" + path);
             }
-            return false;
-        });
+            if (!paths.contains(file.getParent())) {
+                paths.add(file.getParent());
+            }
+            set.add(file.toURI().toURL());
+        } else {
+            file.listFiles((File f) -> {//java 8
+                if (f.isFile() && f.getName().toLowerCase().endsWith("jar")) {
+                    try {
+                        urls.add(f.getAbsolutePath());
+                        set.add(f.toURI().toURL());
+                    } catch (MalformedURLException e) {
+                    }
+                }
+                return false;
+            });
+        }
         if (set.isEmpty()) {
             return this;
         }
@@ -172,7 +178,7 @@ public final class Activator {
 
     }
 
-    public <T> T newInstance(Class<T> clazz, Object... args) throws InstantiationException{
+    public <T> T newInstance(Class<T> clazz, Object... args) throws InstantiationException {
         int length = args == null ? 0 : args.length;
         if (length > 0) {
             try {
@@ -182,7 +188,7 @@ public final class Activator {
                 }
                 Constructor<?> ctor = clazz.getConstructor(types);
                 if (ctor != null) {
-                    return (T)ctor.newInstance(args);
+                    return (T) ctor.newInstance(args);
                 }
             } catch (Exception e) {
                 //noting;
@@ -192,16 +198,17 @@ public final class Activator {
         for (Constructor<?> ctor : clazz.getConstructors()) {
             if (ctor.getParameterTypes().length == length) {
                 try {
-                    return (T)ctor.newInstance(args);
+                    return (T) ctor.newInstance(args);
                 } catch (Exception ex) {
+                    ex.printStackTrace();
                     throw new InstantiationException(ex.getMessage());
                 }
             }
         }
         throw new InstantiationException();
     }
-    
-    public Object newInstance(String classFullname, Object... args) throws InstantiationException, ClassNotFoundException{
+
+    public Object newInstance(String classFullname, Object... args) throws InstantiationException, ClassNotFoundException {
         return this.newInstance(this.getClass(classFullname), args);
     }
 }

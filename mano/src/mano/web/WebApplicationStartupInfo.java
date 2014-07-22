@@ -17,7 +17,8 @@ import mano.Service;
 import mano.ServiceProvider;
 import mano.http.HttpModuleSettings;
 import mano.http.HttpServer;
-import mano.util.Logger;
+import mano.util.logging.Logger;
+import mano.util.logging.ILogger;
 import mano.util.NameValueCollection;
 import mano.util.Utility;
 
@@ -78,7 +79,7 @@ public class WebApplicationStartupInfo {
                 return app;
             }
         } catch (Exception ex) {
-            ((ServiceProvider) service).getService(Logger.class).error("WebApplicationStartupInfo.getInstance", ex);
+            Logger.error("WebApplicationStartupInfo.getInstance", ex);
         }
         return null;
     }

@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.Map;
 import java.util.Map.Entry;
+import mano.util.logging.Logger;
 
 /**
  *
@@ -42,7 +43,7 @@ public class StaticFileModule implements HttpModule {
 
     private boolean process(HttpContext context, String path, String mime) {
 
-        context.getApplication().getLogger().trace("process static path:" + path);
+        Logger.debug("process static path:" + path);
 
         File file = new File(path);
         if (!file.exists() || !file.isFile()) {

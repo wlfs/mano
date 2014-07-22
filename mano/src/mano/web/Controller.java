@@ -10,13 +10,13 @@ package mano.web;
 import mano.http.HttpContext;
 import mano.http.HttpRequest;
 import mano.http.HttpResponse;
+import mano.util.json.JsonConvert;
 
 /**
- * u.diosay.com=host ok w.diosay.com=host na
+ * 
  *
  * @author jun <jun@diosay.com>
  */
-@Module("{host=token}/home/{lang}")
 public abstract class Controller {
 
     protected HttpResponse response;
@@ -46,14 +46,24 @@ public abstract class Controller {
         service.setResult(new ViewResult());
     }
 
-    public void view(String action, String controller) {
+    protected void view(String action, String controller) {
         service.setAction(action);
         service.setController(controller);
         service.setResult(new ViewResult());
     }
 
-    public void template(String path) {
+    protected void template(String path) {
         service.setResult(new ViewResult());
+    }
+    
+    protected void text(String content){
+        
+    }
+    
+    protected void json(Object src){
+        service.getContext().getResponse().setContentType("application/json");
+        
+        service.getContext().getResponse().write(JsonConvert.serialize(src));
     }
 
 }

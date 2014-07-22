@@ -8,7 +8,7 @@
 package mano;
 
 import java.util.Map;
-import mano.util.Logger;
+import mano.util.logging.ILogger;
 
 /**
  *

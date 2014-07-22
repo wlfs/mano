@@ -27,7 +27,8 @@ import mano.io.ByteBufferPool;
 import mano.net.AioConnection;
 import mano.net.Connection;
 import mano.net.Task;
-import mano.util.Logger;
+import mano.util.logging.Logger;
+import mano.util.logging.ILogger;
 import mano.util.NameValueCollection;
 import mano.util.Pool;
 import mano.util.Utility;
@@ -58,7 +59,7 @@ public class HttpService extends Service implements ServiceProvider {
     private String bootstrapPath;
     private String configPath;
     private Activator loader;
-    private Logger logger;
+    private ILogger logger;
     private String name;
 
     public HttpService() {
@@ -84,7 +85,7 @@ public class HttpService extends Service implements ServiceProvider {
         return _factory.get();
     }
 
-    public Logger getLogger() {
+    public ILogger getLogger() {
         return this.logger;
     }
 
@@ -101,7 +102,7 @@ public class HttpService extends Service implements ServiceProvider {
     public void init(ServiceContainer container, Map<String, String> params) {
         super.init(container, null);
         ServiceProvider provider = (ServiceProvider) container;
-        logger = provider.getService(Logger.class);
+        logger = provider.getService(ILogger.class);
         loader = provider.getService(Activator.class);
 
         if (params != null) {
@@ -114,16 +115,16 @@ public class HttpService extends Service implements ServiceProvider {
             this.configServices();
         } catch (XmlException ex) {
             //ex.printStackTrace();
-            logger.error("", ex);
+            Logger.error("", ex);
         }
     }
 
-    public void init(String serviceName, Activator activator, Logger logger) {
+    public void init(String serviceName, Activator activator, ILogger logger) {
 
         try {
             this.configServices();
         } catch (XmlException ex) {
-            logger.error("", ex);
+            Logger.error("", ex);
         }
     }
 
@@ -309,10 +310,10 @@ public class HttpService extends Service implements ServiceProvider {
                 conn.bind(100);
                 conn.accept(_factory.get());
 
-                this.getLogger().infoFormat("listening for:%s", info.address.toString());
+                Logger.info("listening for:%s", info.address.toString());
             }
         } catch (IOException e) {
-            this.getLogger().error("mano.http.HttpService.run", e);
+            Logger.error("mano.http.HttpService.run", e);
         }
     }
 
@@ -326,7 +327,7 @@ public class HttpService extends Service implements ServiceProvider {
         if (serviceType == null) {
             return null;
         }
-        if (Logger.class.getName().equals(serviceType.getName())) {
+        if (ILogger.class.getName().equals(serviceType.getName())) {
             return (T) logger;
         } else if (Activator.class.getName().equals(serviceType.getName())) {
             return (T) loader;
@@ -369,10 +370,10 @@ public class HttpService extends Service implements ServiceProvider {
                 accept().setOption(StandardSocketOptions.SO_REUSEADDR, true);
                 accept().setOption(StandardSocketOptions.SO_KEEPALIVE, false);
             } catch (IOException e) {
-                service.getLogger().error(HttpTask.class.getName(), e);
+                Logger.error(HttpTask.class.getName(), e);
             }
             try {
-                service.getLogger().trace("connected:" + this.accept().getRemoteAddress());
+                Logger.info("connected:" + this.accept().getRemoteAddress());
             } catch (IOException ignored) {
             }
 

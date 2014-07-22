@@ -19,7 +19,8 @@ import mano.http.HttpContext;
 import mano.http.HttpException;
 import mano.http.HttpModule;
 import mano.http.HttpStatus;
-import mano.util.Logger;
+import mano.util.logging.Logger;
+import mano.util.logging.ILogger;
 import mano.util.Utility;
 
 /**
@@ -30,16 +31,16 @@ public class WebApplication {
 
     private Set<HttpModule> modules;
     private Activator loader;
-    private Logger logger;
+    private ILogger logger;
     private WebApplicationStartupInfo startupInfo;
 
     public Activator getLoader() {
         return loader;
     }
 
-    public Logger getLogger() {
+    public ILogger getLogger() {
         if (logger == null) {
-            logger = ((ServiceProvider) startupInfo.service).getService(Logger.class);
+            logger = ((ServiceProvider) startupInfo.service).getService(ILogger.class);
         }
         return logger;
     }
@@ -57,7 +58,7 @@ public class WebApplication {
                     modules.add(mod);
                 }
             } catch (InstantiationException | ClassNotFoundException ex) {
-                getLogger().error("WebApplication.init(modules)", ex);
+                Logger.error("WebApplication.init(modules)", ex);
             }
         }
 

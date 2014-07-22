@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <provider.mapping>
+        <map name="mano.util.json.JsonConvert" type="mano.json.GsonConverter,mano.libprovides" path=""/>
+        <map name="mano.util.logging.Logger" type="mano.util.logging.CansoleLogger,mano" path="">
+            <depend path="/server/bin/ext/"/>
+        </map>
+    </provider.mapping>
     <services>
         <service name="cache.service" type="mano.caching.CacheService,mano.wrt"></service>
         <service name="http.service" type="mano.http.HttpService,mano.wrt">

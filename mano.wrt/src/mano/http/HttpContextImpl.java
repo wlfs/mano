@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import mano.util.logging.Logger;
 import mano.web.HttpSession;
 
 /**
@@ -200,6 +201,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
     }
 
     void onError(Throwable t) {
+        Logger.debug("HttpContextImpl.onError", t);
         try {
             int status;
             if (t instanceof HttpException) {
@@ -218,7 +220,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
             rsp.end();
             //t.printStackTrace();
         } catch (Exception ex) {
-            service.getLogger().error("", ex);
+            Logger.error("", ex);
         }
     }
 

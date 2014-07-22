@@ -5,15 +5,20 @@
  * See more http://mano.diosay.com/
  * 
  */
-package mano.util;
+package mano.util.logging;
 
 /**
  *
  * @author jun <jun@diosay.com>
  */
-public interface Logger {
-
-    public boolean isInfoEnabled();
+public interface ILogger {
+    
+    boolean isEnabled(int level);
+    void log(int level,Object obj);
+    void log(int level,String format, Object... args);
+    void log(int level,String message,Throwable t);
+    
+    /*public boolean isInfoEnabled();
 
     public void info(Object message);
 
@@ -51,5 +56,5 @@ public interface Logger {
 
     public void warn(Object message, Throwable t);
 
-    public void warnFormat(String format, Object... args);
+    public void warnFormat(String format, Object... args);*/
 }
