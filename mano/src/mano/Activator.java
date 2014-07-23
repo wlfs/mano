@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import mano.util.logging.Logger;
 
 /**
  *
@@ -70,50 +72,62 @@ public final class Activator {
         return this;
     }
 
-    public synchronized Activator loadAll(String path) throws FileNotFoundException, MalformedURLException {
-        File file = new File(path);
-        if (!file.exists()) {
-            throw new FileNotFoundException(path);
-        }
-        final Set<URL> set = new HashSet<>();
-        final Set<String> urls = new HashSet<>();
-        if (!file.isDirectory()) {
-            if (file.getName().toLowerCase().endsWith(".jar")) {
-                throw new UnsupportedOperationException("不是一个有效的jar文件。filename:" + path);
-            }
-            if (!paths.contains(file.getParent())) {
-                paths.add(file.getParent());
-            }
-            set.add(file.toURI().toURL());
-        } else {
-            file.listFiles((File f) -> {//java 8
-                if (f.isFile() && f.getName().toLowerCase().endsWith("jar")) {
-                    try {
-                        urls.add(f.getAbsolutePath());
-                        set.add(f.toURI().toURL());
-                    } catch (MalformedURLException e) {
-                    }
-                }
-                return false;
-            });
-        }
-        if (set.isEmpty()) {
+    public synchronized Activator loadAll(String... files) {
+        if (files == null) {
             return this;
         }
+        File file;
+        final Set<URL> set = new HashSet<>();
+        final Set<String> urls = new HashSet<>();
+        for (String path : files) {
+            file = new File(path);
+            if (!file.exists()) {
+                Logger.warn("Activator.loadAll:File not found.path:%s", path);
+            }
 
-        if (!paths.contains(file.getAbsolutePath())) {
-            paths.add(file.getAbsolutePath());
+            if (!file.isDirectory()) {
+                if (!file.getName().toLowerCase().endsWith(".jar")) {
+                    Logger.warn("Activator.loadAll:File not a JAR file.path:%s", path);
+                }
+                if (!paths.contains(file.getParent())) {
+                    paths.add(file.getParent());
+                }
+                try {
+                    set.add(file.toURI().toURL());
+                } catch (MalformedURLException ex) {
+                    Logger.warn("Activator.loadAll:toURL fatal.", ex);
+                }
+            } else {
+                file.listFiles((File f) -> {//java 8
+                    if (f.isFile() && f.getName().toLowerCase().endsWith("jar")) {
+                        try {
+                            urls.add(f.getAbsolutePath());
+                            set.add(f.toURI().toURL());
+                            if (!paths.contains(f.getAbsolutePath())) {
+                                paths.add(f.getAbsolutePath());
+                            }
+                        } catch (MalformedURLException ex) {
+                            Logger.warn("Activator.loadAll:toURL fatal.", ex);
+                        }
+                    }
+                    return false;
+                });
+            }
         }
-        current = new URLClassLoader(set.toArray(new URL[0]), current);
-        for (String url : urls) {
-            if (!this.mappings.containsKey(url)) {
-                this.mappings.put(url, current);
+
+        if (!set.isEmpty()) {
+            current = new URLClassLoader(set.toArray(new URL[0]), current);
+            for (String url : urls) {
+                if (!this.mappings.containsKey(url)) {
+                    this.mappings.put(url, current);
+                }
             }
         }
 
         return this;
     }
 
+    @Deprecated
     public Activator register(String path) throws FileNotFoundException {
         File file = new File(path);
         if (!file.exists()) {

@@ -128,7 +128,7 @@ public class Program implements ServiceContainer, ServiceProvider {
         String configPath = Utility.combinePath(bootstrapPath, "server/config.xml").toString();
         XmlHelper helper = XmlHelper.load(configPath);
         NamedNodeMap attrs;
-        NodeList nodes = helper.selectNodes("/configuration/provider.mapping/map/depend");
+        NodeList nodes = helper.selectNodes("/configuration/provider.mapping/map/dependency");
         for (int i = 0; i < nodes.getLength(); i++) {
             attrs = nodes.item(i).getAttributes();
             try {

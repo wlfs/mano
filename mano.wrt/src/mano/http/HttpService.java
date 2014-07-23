@@ -16,7 +16,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
 import mano.Activator;
 import mano.Service;
 import mano.ServiceContainer;
@@ -198,10 +197,16 @@ public class HttpService extends Service implements ServiceProvider {
             info.service = this;
             info.modules = modules;
             info.serverPath = this.bootstrapPath;
-            NodeList params = helper.selectNodes(nodes.item(i), "settings/add");
-            for (int j = 0; j < params.getLength(); j++) {
-                attrs = params.item(j).getAttributes();
+            NodeList children = helper.selectNodes(nodes.item(i), "settings/add");
+            for (int j = 0; j < children.getLength(); j++) {
+                attrs = children.item(j).getAttributes();
                 info.settings.put(attrs.getNamedItem("key").getNodeValue(), attrs.getNamedItem("value").getNodeValue());
+            }
+
+            children = helper.selectNodes(nodes.item(i), "dependency/add");
+            for (int j = 0; j < children.getLength(); j++) {
+                attrs = children.item(j).getAttributes();
+                info.dependency.add(attrs.getNamedItem("path").getNodeValue());
             }
 
             /*params = helper.selectNodes(nodes.item(i), "params/param");

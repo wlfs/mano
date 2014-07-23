@@ -3,7 +3,7 @@
     <provider.mapping>
         <map name="mano.util.json.JsonConvert" type="mano.json.GsonConverter,mano.libprovides" path=""/>
         <map name="mano.util.logging.Logger" type="mano.util.logging.CansoleLogger,mano" path="">
-            <depend path="/server/bin/ext/"/>
+            <dependency path="/server/bin/ext/"/>
         </map>
     </provider.mapping>
     <services>
@@ -61,6 +61,10 @@
         <web.applications>
             <!--<include path="xxx/web.xml"/>-->
             <application name="default application" host="*:9999" path="/server/wwwroot" vpath="/user" type="mano.web.WebApplication,mano">
+                <dependency>
+                    <add path="~/server/bin/ext/hibernate-release-4.3.5.Final/required"/>
+                    <add path="~/server/bin/ext/hibernate-release-4.3.5.Final/jpa"/>
+                </dependency>
                 <settings>
                     <add key="db:driver:myconn" value="mysql"/>
                     <add key="db:strings:myconn" value="jdbc:mysql://localhost/myDB"/>

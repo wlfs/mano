@@ -8,6 +8,7 @@
 package mano.web;
 
 import java.io.FileNotFoundException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -17,10 +18,10 @@ import mano.Service;
 import mano.ServiceProvider;
 import mano.http.HttpModuleSettings;
 import mano.http.HttpServer;
-import mano.util.logging.Logger;
-import mano.util.logging.ILogger;
 import mano.util.NameValueCollection;
 import mano.util.Utility;
+import mano.util.logging.ILogger;
+import mano.util.logging.Logger;
 
 /**
  *
@@ -35,7 +36,8 @@ public class WebApplicationStartupInfo {
 
     public String type;
     public String path;
-    public ArrayList<String> documents;
+    public ArrayList<String> documents = new ArrayList<>();
+    public ArrayList<String> dependency = new ArrayList<>();
     public NameValueCollection<String> settings;
     public String serverPath;
     private WebApplication app;
@@ -58,18 +60,39 @@ public class WebApplicationStartupInfo {
             return null;
         }
         try {
+            ArrayList<String> files = new ArrayList<>();
+
+            files.add(getServerInstance().mapPath("bin"));
+            files.add(getServerInstance().mapPath("bin/lib"));
+            files.add(getServerInstance().mapPath("bin/ext"));
+
+            for (String file : dependency) {
+
+                if (file == null || "".equals(file)) {
+                    continue;
+                }
+
+                if (file.startsWith("~/")) {
+                    files.add(Utility.combinePath(serverPath, file.substring(1)).toString());
+                } else if (file.startsWith("/")) {
+                    files.add(getServerInstance().mapPath(file));
+                } else {
+                    files.add(file);
+                }
+            }
 
             Activator loader = new Activator(((ServiceProvider) service).getService(Activator.class));
-            try {
-                loader.register(getServerInstance().mapPath("bin"));
-            } catch (FileNotFoundException ex) {
-                //ignored
-            }
-            try {
-                loader.register(getServerInstance().mapPath("bin/lib"));
-            } catch (FileNotFoundException ex) {
-                //ignored
-            }
+            loader.loadAll(files.toArray(new String[0]));
+            /*try {
+             loader.register(getServerInstance().mapPath("bin"));
+             } catch (FileNotFoundException ex) {
+             //ignored
+             }
+             try {
+             loader.register(getServerInstance().mapPath("bin/lib"));
+             } catch (FileNotFoundException ex) {
+             //ignored
+             }*/
 
             app = (WebApplication) loader.newInstance(this.type);
             if (app != null) {
@@ -78,6 +101,8 @@ public class WebApplicationStartupInfo {
                 init.invoke(app, this, loader);
                 return app;
             }
+        } catch (InvocationTargetException ex) {
+            Logger.error("WebApplicationStartupInfo.getInstance", ex.getTargetException() == null ? ex : ex.getTargetException());
         } catch (Exception ex) {
             Logger.error("WebApplicationStartupInfo.getInstance", ex);
         }
