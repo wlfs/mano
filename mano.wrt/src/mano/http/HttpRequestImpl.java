@@ -17,6 +17,8 @@ import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -71,7 +73,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     }
 
     @Override
-    public long contentLength() {
+    public long getContentLength() {
         return this._contentLength;
     }
 
@@ -141,10 +143,6 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     }
     final AtomicBoolean postLoadFlag = new AtomicBoolean(false);
 
-    public void setPostDataProcessHandler(String contentType, Object handler) {
-
-    }
-
     @Override
     public synchronized void appendFormItem(String name, String value) {
 
@@ -162,24 +160,41 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
         _files.put(file.getName(), file);
     }
 
-    public void loadPostData() {
+    private synchronized void loadPostData() {
+        if (postLoadFlag.get()) {
+            return;
+        }
+        postLoadFlag.set(true);
         boolean hasPostData;
         try {
             hasPostData = hasPostData();
         } catch (HttpException ex) {
+            //TODO:抛出错误？
             return;
         }
-        if(!hasPostData){
+        if (!hasPostData) {
             return;
         }
-        
+
         if (isChunked) {
-            //TODO: context.setPhase(HttpPhase.ResolveChunkedHeader);
-        } else {
-            System.out.println("here");
+            throw new UnsupportedOperationException("chunked 编码未实现。");
+        } else if (context.requestHandler != null) {
+            //
+        } else if (this.isFormMultipart) {
             context.requestHandler = new LoadExactDataHandler(this, new HttpMultipartParser(this._boundary));
-            context.run();
+        } else if (this.isFormUrlEncoded) {
+            context.requestHandler = new LoadExactDataHandler(this, new HttpFormUrlEncodedParser());
+        } else {
+            throw new InvalidOperationException("未设置处理程序。");
         }
+        context.run();
+        if (!postLoadFlag.get()) { //等待处理完成
+            try {
+                postLoadFlag.wait(1000 * 60 * 5);
+            } catch (InterruptedException ignored) {
+            }
+        }
+
     }
 
     @Override
@@ -209,12 +224,13 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public void loadEntityBody(HttpEntityBodyHandler handler) throws InvalidOperationException, NullPointerException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        context.requestHandler = new LoadExactDataHandler(this,handler);
+        loadPostData();
     }
 
     @Override
     public void loadEntityBody() throws InvalidOperationException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        loadPostData();
     }
 
     @Override
@@ -234,6 +250,9 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
         HttpEntityBodyHandler handle;
 
         LoadExactDataHandler(HttpRequestImpl req, HttpEntityBodyHandler hd) {
+            if(hd==null){
+                throw new NullPointerException();
+            }
             request = req;
             handle = hd;
         }
@@ -257,10 +276,11 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
         @Override
         public HttpRequestHandler getNextHandler() {
-            return this;
+            return handler;
         }
     }
 
+    @Deprecated
     private void loadMultipart() throws InterruptedException {
         synchronized (postLoadFlag) {
             if (postLoadFlag.get() || !this.isFormMultipart) {
@@ -278,19 +298,13 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public Map<String, String> form() {
-        try {
-            loadMultipart();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if (_form == null) {
-            _form = new NameValueCollection<>();
-        }
+        loadPostData();
         return _form;
     }
 
     @Override
     public Map<String, HttpPostFile> files() {
+        loadPostData();
         return this._files;
     }
 }

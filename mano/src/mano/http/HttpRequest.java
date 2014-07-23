@@ -72,7 +72,7 @@ public abstract class HttpRequest {
      *
      * @return
      */
-    public abstract long contentLength();
+    public abstract long getContentLength();
 
     /**
      * 获取 HTTP 查询字符串变量集合。

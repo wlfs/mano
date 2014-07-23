@@ -314,7 +314,8 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
                     if ("".equals(line)) {
                         handler = null;//结束头部解析
                         context.req.hasPostData(); //提前确定POST数据，发现错误
-                        if (!context.service.handle(context)) {
+                        context.requestHandler=null;
+                        if (!context.service.handle(context)) {//TODO: 应该是一个新的handler
                             throw new HttpException(HttpStatus.BadRequest, "Bad Request (Invalid Hostname)");
                         }
                         if (!context.isCompleted()) {

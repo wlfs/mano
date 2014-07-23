@@ -40,4 +40,16 @@ public class Home extends Controller {
         
         this.json("hello");
     }
+    
+    @UrlMapping("/submit")
+    void submit() {
+        this.text("post input[text] content:" + this.form("text"));
+    }
+    
+    @UrlMapping("/form")
+    void form() {
+        this.view();
+        
+    }
+    
 }

@@ -12,6 +12,7 @@ package mano.http;
  * @author jun <jun@diosay.com>
  */
 public interface HttpRequestAppender {
+    long getContentLength();
     void appendPostFile(HttpPostFile file);
     void appendFormItem(String name, String value);
 }

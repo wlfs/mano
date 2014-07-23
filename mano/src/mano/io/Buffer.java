@@ -10,6 +10,8 @@ package mano.io;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import mano.util.logging.Logger;
 
 /**
  * 表示一个用于交互操作的字节缓冲区。
@@ -67,6 +69,10 @@ public class Buffer {
         return this.read(buf, 0, buf.length);
     }
 
+    /**
+     *
+     * @return 读取并返回一下个字节
+     */
     public synchronized int read() {
         return (this.pos <= this.len) ? (this.array[this.pos++] & 0xff) : -1;
     }
@@ -78,11 +84,10 @@ public class Buffer {
             throw new IndexOutOfBoundsException();
         }
 
-        if (this.pos >= this.len) {
-            return -1;
-        }
-
-        int size = this.len - this.pos;
+        /*if (this.pos >= this.capacity) {//cap->len
+         return -1;
+         }*/
+        int size = this.capacity - this.pos;//cap->len
         if (size >= count) {
             size = count;
         }
@@ -103,7 +108,7 @@ public class Buffer {
     }
 
     public synchronized int write(int b) {
-        if (this.len - this.pos <= 0) {
+        if (this.capacity - this.pos <= 0) {//cap->len,TODO:准确度
             return -1;
         }
         this.array[this.pos++] = (byte) b;
@@ -219,10 +224,10 @@ public class Buffer {
             if (haystack[i] == needle[needleIndex]) //找到第一匹配的位置
             {
                 for (int j = 0; j < needleCount - 1; j++) //连续匹配
-                                                                                                                                                                                                                                                                {
+                {
                     if (haystack[i + j] != needle[j + needleIndex]) //如果中途不匹配
                     {
-                        return bytesIndexOf(haystack, i + 1, count - (i - index) - 1, needle,needleIndex,needleCount);//从不匹配位置回溯
+                        return bytesIndexOf(haystack, i + 1, count - (i - index) - 1, needle, needleIndex, needleCount);//从不匹配位置回溯
                     }
                 }
                 return i;
@@ -232,54 +237,77 @@ public class Buffer {
         return -1;
     }
 
-    public synchronized String readln() throws UnsupportedEncodingException {
+    public synchronized String readln(String charset) throws UnsupportedEncodingException {
         int off = this.offset + this.pos;
-        if(this.len<CRLF.length){
+        if (this.len < CRLF.length) {
             return null;
         }
-        int index = bytesIndexOf(this.array, off, this.len, CRLF);
+        int index = bytesIndexOf(this.array, off, this.length(), CRLF);
         if (index < 0) {
             return null;
         }
-        int count = index - off;
-        String result = "";
-        if (count > 0) {
-            result = new String(this.array, off, count, "UTF-8");//存在3次复制
-        }
-        this.pos += count + CRLF.length;
+        //int count = index - off;
+        String result = readstr(off, index - off, charset);
+        //if (count > 0) {
+        //    result = new String(this.array, off, count, charset);//存在3次复制
+        //    //Logger.info(result);
+        //}
+        this.pos += CRLF.length;
         return result;
     }
 
-    public int write(ByteBuffer buf){
-        int size=this.len-this.pos;
-        if(size>=buf.remaining()){
-            size=buf.remaining();
+    public synchronized String readln() throws UnsupportedEncodingException {
+        return readln("UTF-8");
+    }
+
+    public synchronized String readstr(int off, int count, String charset) throws UnsupportedEncodingException {
+        String result = new String(this.array, off, count, charset);
+        this.pos += count;
+        return result;
+    }
+
+    public synchronized String readstr(int off, int count) throws UnsupportedEncodingException {
+        return readstr(off, count, "UTF-8");
+    }
+
+    public synchronized String readstr(String charset) throws UnsupportedEncodingException {
+        return readstr(this.offset + this.pos, this.length(), charset);
+    }
+
+    public synchronized String readstr() throws UnsupportedEncodingException {
+        return readstr("UTF-8");
+    }
+
+    public int write(ByteBuffer buf) {
+        int size = this.len - this.pos;
+        if (size >= buf.remaining()) {
+            size = buf.remaining();
         }
-        if(size<=0){
+        if (size <= 0) {
             return 0;
         }
-        buf.get(this.array, this.offset+this.pos, size);
-        this.pos+=size;
+        buf.get(this.array, this.offset + this.pos, size);
+        this.pos += size;
         return size;
     }
-    
-    public int write(Stream stream) throws IOException{
-        int size=this.len-this.pos;
-        if(size<=0){
+
+    public int write(Stream stream) throws IOException {
+        int size = this.len - this.pos;
+        if (size <= 0) {
             return 0;
         }
-        int result=0;
+        int result = 0;
         int count;
-        while((count=stream.read(this.array, this.offset+this.pos, size))>0){
-            size-=count;
-            result+=count;
-            this.pos+=count;
+        while ((count = stream.read(this.array, this.offset + this.pos, size)) > 0) {
+            size -= count;
+            result += count;
+            this.pos += count;
         }
         return result;
     }
-    
-    public boolean hasRemaining(){
-        return this.len-this.pos>0;
+
+    public boolean hasRemaining() {
+        return this.len - this.pos > 0;
     }
-    
+
 }
