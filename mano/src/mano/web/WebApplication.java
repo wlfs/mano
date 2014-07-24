@@ -8,6 +8,7 @@
 package mano.web;
 
 import java.io.FileNotFoundException;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -19,9 +20,9 @@ import mano.http.HttpContext;
 import mano.http.HttpException;
 import mano.http.HttpModule;
 import mano.http.HttpStatus;
-import mano.util.logging.Logger;
-import mano.util.logging.ILogger;
 import mano.util.Utility;
+import mano.util.logging.ILogger;
+import mano.util.logging.Logger;
 
 /**
  *
@@ -101,6 +102,16 @@ public class WebApplication {
 
     public final void destory() {
 
+    }
+    private HashMap<String,Object> items=new HashMap<>();
+    public Object get(String name){
+        if(items.containsKey(name)){
+            return items.get(name);
+        }
+        return null;
+    }
+    public void set(String name,Object value){
+        items.put(name, value);
     }
 
     /**

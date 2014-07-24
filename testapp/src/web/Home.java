@@ -61,28 +61,45 @@ public class Home extends Controller {
 
     }
 
+    Session getSession() throws Exception {
+        Session result = (Session) this.context.getApplication().get("dao-session");
+        if (result == null) {
+            SessionFactory sessionFactory = (SessionFactory) this.context.getApplication().get("dao-session-fat");
+            if (sessionFactory == null) {
+                URL url;
+                try {
+                    url = new File(this.context.getServer().mapPath("config/hibernate.cfg.xml")).toURI().toURL();
+                } catch (Exception ex) {
+                    Logger.fatal("", ex);
+                    throw ex;
+                }
+                Configuration cfg = new Configuration().configure(url);
+                cfg.setProperty("mappingDirectoryLocations", this.context.getServer().mapPath("config/mappings"));
+                StandardServiceRegistryBuilder ssrb = new StandardServiceRegistryBuilder().applySettings(cfg.getProperties());
+                StandardServiceRegistry ssr = ssrb.build();
+                sessionFactory = cfg.buildSessionFactory(ssr);
+                this.context.getApplication().set("dao-session-fat", sessionFactory);
+            }
+
+            result = sessionFactory.openSession();
+            //this.context.getApplication().set("dao-session", result);
+        }
+        return result;
+    }
+
     @UrlMapping
     void dao() throws Exception {
-        URL url;
-        try {
-            // A SessionFactory is set up once for an application
-            //sessionFactory = new Configuration()
-            //    .configure() // configures settings from hibernate.cfg.xml
-            //    .buildSessionFactory();
-
-            url = new File(this.context.getServer().mapPath("config/hibernate.cfg.xml")).toURL();
-        } catch (Exception ex) {
-            Logger.fatal("", ex);
-            throw ex;
-        }
-        //下载安装MYSQL驱动 http://dev.mysql.com/downloads/file.php?id=452397
-        Configuration cfg = new Configuration().configure(url);
-        StandardServiceRegistryBuilder ssrb = new StandardServiceRegistryBuilder().applySettings(cfg.getProperties());
-        StandardServiceRegistry ssr = ssrb.build();
-        SessionFactory sessionFactory = cfg.buildSessionFactory(ssr);
-
-        this.text(sessionFactory.toString());
-
+        Session session = getSession();
+        
+        dao.Employee entity = new dao.Employee();
+        entity.setFirstName("张");
+        entity.setLastName("三");
+        Transaction trans=session.beginTransaction();
+        session.save(entity);
+        trans.commit();
+        session.flush();
+        this.text("employee:id:" + entity.getId() + "; name:" + entity.getFirstName() + " " + entity.getLastName());
+        session.close();
     }
 
 }

@@ -4,7 +4,9 @@
 	"http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
 
 <hibernate-configuration>
-    <session-factory name="foo">
+    <session-factory>
+        <!--关闭自动建表 none|-->
+        <property name="hibernate.hbm2ddl.auto">update</property>
         <!--显示执行的SQL语句-->
         <property name="show_sql">true</property>
         <!--连接字符串-->
@@ -23,8 +25,9 @@
         <property name="dialect">org.hibernate.dialect.MySQLDialect</property>
         <!--在启动时删除并重新创建数据库-->
         <property name="hbm2ddl.auto">create</property>
+        <mapping resource="dao/Employee.hbm.xml"/>
         <!--<mapping resource="events/Event.hbm.xml"/>
-    <mapping resource="events/Person.hbm.xml"/>
+    
     <mapping resource="org/hibernate/test/legacy/Simple.hbm.xml"/>
     <class-cache
         class="org.hibernate.test.legacy.Simple"
