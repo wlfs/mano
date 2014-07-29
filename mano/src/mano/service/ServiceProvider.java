@@ -5,7 +5,7 @@
  * See more http://mano.diosay.com/
  * 
  */
-package mano;
+package mano.service;
 
 /**
  * 定义一种检索服务对象的机制，服务对象是为其他对象提供自定义支持的对象。

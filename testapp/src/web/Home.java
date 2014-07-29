@@ -46,8 +46,13 @@ public class Home extends Controller {
             this.context.getSession().set("user", id);
             System.out.println("还未登录,id:" + id);
         }
+        
+        this.set("title", "hello");
+        this.set("title", "OPTL-IL TEST");
+        this.set("obj", this);
+        this.set("list", new String[]{"abx", "fttf"});
 
-        this.json("hello");
+        this.view();
     }
 
     @UrlMapping("/submit")
@@ -74,7 +79,7 @@ public class Home extends Controller {
                     throw ex;
                 }
                 Configuration cfg = new Configuration().configure(url);
-                cfg.setProperty("mappingDirectoryLocations", this.context.getServer().mapPath("config/mappings"));
+                //cfg.setProperty("mappingDirectoryLocations", this.context.getServer().mapPath("config/mappings"));
                 StandardServiceRegistryBuilder ssrb = new StandardServiceRegistryBuilder().applySettings(cfg.getProperties());
                 StandardServiceRegistry ssr = ssrb.build();
                 sessionFactory = cfg.buildSessionFactory(ssr);
@@ -98,7 +103,7 @@ public class Home extends Controller {
         session.save(entity);
         trans.commit();
         session.flush();
-        this.text("employee:id:" + entity.getId() + "; name:" + entity.getFirstName() + " " + entity.getLastName());
+        this.json(entity);
         session.close();
     }
 

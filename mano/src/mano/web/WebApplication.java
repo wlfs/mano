@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import mano.Activator;
 import mano.InvalidOperationException;
-import mano.ServiceProvider;
+import mano.service.ServiceProvider;
 import mano.http.HttpContext;
 import mano.http.HttpException;
 import mano.http.HttpModule;

@@ -166,7 +166,6 @@ public class UrlRouteModule implements HttpModule {
 
                 if (part == null || "".equals(part)) {
                     part = method.getName();
-                    Logger.debug("xxxxxxxxxxxxxxxxxx" + part);
                 }
                 if (part.startsWith("/")) {
                     part = part.substring(1);
@@ -176,7 +175,6 @@ public class UrlRouteModule implements HttpModule {
                 sb.setLength(0);
                 sb.append(url);
                 sb.append(part);
-                Logger.debug(sb);
                 matcher = pattern.matcher(sb);
                 while (matcher.find()) {
                     String name = matcher.group(1);
@@ -283,17 +281,6 @@ public class UrlRouteModule implements HttpModule {
         return this.handle(context, context.getRequest().url().getPath());
     }
 
-    public String field = "i am is a field";
-    public String oprop = "i am is a auto property";
-
-    public String getProp() {
-        return "i am is a property(getProp())";
-    }
-
-    public int addTest(int a, int b) {
-        return a + b;
-    }
-
     @Override
     public boolean handle(HttpContext context, String tryPath) {
         Pattern test;
@@ -320,12 +307,7 @@ public class UrlRouteModule implements HttpModule {
                     rs.setAction(route.action);
                     Object obj = context.getApplication().getLoader().newInstance(route.clazz);
                     Method m = Controller.class.getDeclaredMethod("setService", RequestService.class);
-                    /*for (Method mm : route.clazz.getMethods()) {//route.clazz
-                     if (mm.getName().equals("setService") && mm.getParameterCount() == 1) {
-                     m = mm;
-                     break;
-                     }
-                     }*/
+                    
                     m.setAccessible(true);
                     m.invoke(obj, rs);//
                     route.call.invoke(obj, params);
@@ -359,10 +341,7 @@ public class UrlRouteModule implements HttpModule {
             ((ViewResult) result).init(viewEngine);
         }
 
-        rs.set("title", "hello");
-        rs.set("title", "OPTL-IL TEST");
-        rs.set("obj", this);
-        rs.set("list", new String[]{"abx", "fttf"});
+        
 
         result.execute(rs);
 

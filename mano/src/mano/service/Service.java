@@ -5,7 +5,7 @@
  * See more http://mano.diosay.com/
  * 
  */
-package mano;
+package mano.service;
 
 import java.util.Map;
 import mano.util.logging.ILogger;

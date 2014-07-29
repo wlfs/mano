@@ -82,6 +82,7 @@ public abstract class Parser {
     }
 
     private void findDelimiter(String source, int index) {
+        int old=index;
         String ld = "<!--" + leftDelimiter;
         String rd = rightDelimiter + "-->";
         int start = source.indexOf(ld, index);
@@ -90,15 +91,28 @@ public abstract class Parser {
             rd = rightDelimiter;
             start = source.indexOf(ld, index);
         }
+        
         if (start > -1) {
-
+            
             int end = this.parseRange(source, start + ld.length(), ld, rd);
             //int next = source.indexOf(leftDelimiter, end); //确认中间是否有分割符
             if (end < 0) {
                 this.reportError("分割符");
             }
-            parsePlian(source.substring(index, start));
-            this.parseMarkup(source.substring(start + ld.length(), end).trim());
+            
+            String tmp=source.substring(start + ld.length(), end).trim();
+            if(inLiteral){
+                if (assertKeyword("/literal",tmp) > -1) {
+                    inLiteral=false;
+                }
+                else{
+                    parsePlian(source.substring(index, end + rd.length()));
+                }
+            }
+            else{
+                parsePlian(source.substring(index, start));
+                this.parseMarkup(tmp);
+            }
             this.findLine(source.substring(end + rd.length()), 0);
         } else {
             parsePlian(source.substring(index));
@@ -230,7 +244,7 @@ public abstract class Parser {
         }
         return -1;
     }
-
+    protected boolean inLiteral = false;
     protected boolean inComment = false;
     protected Document dom;
 
@@ -242,6 +256,8 @@ public abstract class Parser {
             inComment = false;
         } else if (inComment || source.startsWith("//")) { //当前为注释中
             //ignored
+        } else if ((index = assertKeyword("literal", source)) > -1) { //end if
+            inLiteral=true;
         } else if ((index = assertKeyword("/if", source)) > -1) { //end if
             Node node = End.create(this, Node.LEXS_ENDIF);
             dom.append(node);
@@ -271,7 +287,7 @@ public abstract class Parser {
             Node node = Block.create(this, Node.LEXB_ELIF, source.substring(index), Node.LEXB_ELIF, Node.LEXB_ELSE, Node.LEXS_ENDIF);
             dom.append(node);
         } else if ((index = assertKeyword("else", source)) > -1) {//if for each while
-            Node node = Block.create(this, Node.LEXB_ELSE, source.substring(index), Node.LEXS_ENDFOR, Node.LEXS_ENDIF, Node.LEXS_ENDWHILE);
+            Node node = Block.create(this, Node.LEXB_ELSE, source.substring(index), Node.LEXS_ENDFOR, Node.LEXS_ENDIF, Node.LEXS_ENDWHILE,Node.LEXS_ENDEACH);
             //Node node = new End(this,"else", source.substring(index));
             dom.append(node);
         } else if ((index = assertKeyword("if", source)) > -1) { //if语句

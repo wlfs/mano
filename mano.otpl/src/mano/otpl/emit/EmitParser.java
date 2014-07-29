@@ -167,16 +167,15 @@ public class EmitParser extends Parser {
                 }
                 String id = source.substring(index, found);
                 OpCode ret = OpCode.label();
-                OpCode begin = OpCode.label();
-                OpCode end = OpCode.label();
-                OpCode label = OpCode.label();
-                OpCode label2 = OpCode.label();
-                codes.add(begin);
-
+                OpCode elseLable = OpCode.label();
+                OpCode testLabel = OpCode.label();
+                OpCode continueLabel = OpCode.label();
+                
                 String part = Integer.toHexString(UUID.randomUUID().hashCode());
                 String iterator = id + "$itel_" + part;
                 String hasnext = id + "$hnxt_" + part;
                 String next = id + "$nxt_" + part;
+                
                 this.parseExpr(source.substring(found), 0);//参数
                 codes.add(OpCode.create(OpCodes.LOAD_ITERATOR));//将对象转换为迭代器，如果对象为null则会创建一个空迭代
                 codes.add(OpCode.create(OpCodes.SET_VAR, iterator));//保存到迭代器变量
@@ -186,19 +185,19 @@ public class EmitParser extends Parser {
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));//载入迭代器对象
                 codes.add(OpCode.create(OpCodes.LOAD_METHOD, 0, "next"));//找到迭代器方法
                 codes.add(OpCode.create(OpCodes.SET_VAR, next));//保存迭代器方法变量
-
+                
                 //第一次判断
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, hasnext));
                 codes.add(OpCode.create(OpCodes.CALL, 0));
-                codes.add(OpCode.create(OpCodes.CONDITION_JUMP, label2, end));
-                codes.add(label);
+                codes.add(OpCode.create(OpCodes.CONDITION_JUMP, continueLabel, elseLable));
+                codes.add(testLabel);
                 //循环判断
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, hasnext));
                 codes.add(OpCode.create(OpCodes.CALL, 0));
                 codes.add(OpCode.create(OpCodes.JUMP_FLASE, ret));
-                codes.add(label2);
+                codes.add(continueLabel);
                 //设置迭代值
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, next));
@@ -207,12 +206,12 @@ public class EmitParser extends Parser {
 
                 //循环体
                 for (Node sub : node.getNodes()) {
-                    parse(sub, label, ret);
+                    parse(sub, testLabel, ret);
                 }
-                codes.add(OpCode.create(OpCodes.JUMP, label));
-                codes.add(end);
+                codes.add(OpCode.create(OpCodes.JUMP, testLabel));
+                codes.add(elseLable);
 
-                //else
+                //each-else body
                 Node nextNode = node.getNextNode();
                 if (nextNode != null && nextNode.getNodeType() == Node.LEXB_ELSE) {
                     nextNode.mark = true;

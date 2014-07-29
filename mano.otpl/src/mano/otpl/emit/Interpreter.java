@@ -33,7 +33,8 @@ import mano.util.LinkedMap.LinkedNode;
 import mano.util.Utility;
 
 /**
- *
+ * 实现 Open-TPL 编译文件(OTC)的解释器。
+ * @see https://github.com/diosay/open-tpl
  * @author jun <jun@diosay.com>
  */
 public class Interpreter {

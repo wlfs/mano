@@ -8,9 +8,9 @@
 package mano.caching;
 
 import java.util.Map;
-import mano.Service;
-import mano.ServiceContainer;
-import mano.ServiceProvider;
+import mano.service.Service;
+import mano.service.ServiceContainer;
+import mano.service.ServiceProvider;
 
 /**
  *

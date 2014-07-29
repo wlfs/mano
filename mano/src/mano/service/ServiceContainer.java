@@ -6,7 +6,7 @@
  * 
  */
 
-package mano;
+package mano.service;
 
 /**
  *

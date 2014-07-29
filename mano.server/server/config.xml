@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration>
+<configuration xmlns="http://mano.diosay.com/schemes/server.xsd"
+               xmlns:pkg="http://mano.diosay.com/schemes/package.xsd" 
+               xmlns:app="http://mano.diosay.com/schemes/web-application.xsd">
+    <packages>
+        <package name="mano" version="1.1" path="~/bin/mano*">
+            <dependency name="hibernate.core,4.5f"/>
+        </package>
+        <package name="hibernate.core" version="4.5f" path="~/bin/ext/hibernate/required">
+            <dependencies>
+                <dependency name="hibernate.core,1.1"/>
+            </dependencies>
+            <exports>
+                <exprt name="mano.util.logging.Logger" class="mano.util.logging.CansoleLogger"/>
+            </exports>
+        </package>
+    </packages>
     <provider.mapping>
         <map name="mano.util.json.JsonConvert" type="mano.json.GsonConverter,mano.libprovides" path=""/>
         <map name="mano.util.logging.Logger" type="mano.util.logging.CansoleLogger,mano" path="">
@@ -7,6 +22,17 @@
         </map>
     </provider.mapping>
     <services>
+        <!--instantiation|singleton
+        <service name="providers" mode="instantiation" auto="false" >
+            <provides>
+                <export name="DefaultLogService" class="mano.util.logging.CansoleLogger"/>
+            </provides>
+            
+            <dependency>
+                <add path="~/server/bin/ext/hibernate-release-4.3.5.Final/required"/>
+                <add path="~/server/bin/ext/hibernate-release-4.3.5.Final/jpa"/>
+            </dependency>
+        </service>-->
         <service name="cache.service" type="mano.caching.CacheService,mano.wrt"></service>
         <service name="http.service" type="mano.http.HttpService,mano.wrt">
             <params>
@@ -60,7 +86,7 @@
         
         <web.applications>
             <!--<include path="xxx/web.xml"/>-->
-            <application name="default application" host="*:9999" path="/server/wwwroot" vpath="/user" type="mano.web.WebApplication,mano">
+            <app:application name="default application" host="*:9999" path="/server/wwwroot" vpath="/user" type="mano.web.WebApplication,mano">
                 <dependency>
                     <add path="~/server/bin/ext/hibernate-release-4.3.5.Final/required"/>
                     <add path="~/server/bin/ext/hibernate-release-4.3.5.Final/jpa"/>
@@ -72,7 +98,7 @@
                 <!--<request.routing autoDectect="true" domain="admin" controller="home" action="index">
                     <controller name="packge.jar" domain=""/>
                 </request.routing>-->
-            </application>
+            </app:application>
         </web.applications>
         
     </http.service>
