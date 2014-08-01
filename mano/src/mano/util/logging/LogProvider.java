@@ -7,16 +7,18 @@
  */
 package mano.util.logging;
 
+import java.util.Map;
+
 /**
  *
  * @author jun <jun@diosay.com>
  */
-public interface ILogger {
-    
+public interface LogProvider {
+    void init(Map<String,String> params);
     boolean isEnabled(int level);
-    void log(int level,Object obj);
-    void log(int level,String format, Object... args);
-    void log(int level,String message,Throwable t);
+    void write(int level,Object obj);
+    void write(int level,String format, Object... args);
+    void write(int level,String message,Throwable t);
     
     /*public boolean isInfoEnabled();
 

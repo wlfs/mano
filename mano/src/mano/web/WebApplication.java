@@ -14,14 +14,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import mano.Activator;
+import mano.ContextClassLoader;
 import mano.InvalidOperationException;
-import mano.service.ServiceProvider;
 import mano.http.HttpContext;
 import mano.http.HttpException;
 import mano.http.HttpModule;
 import mano.http.HttpStatus;
+import mano.service.ServiceProvider;
 import mano.util.Utility;
-import mano.util.logging.ILogger;
+import mano.util.logging.LogProvider;
 import mano.util.logging.Logger;
 
 /**
@@ -31,22 +32,19 @@ import mano.util.logging.Logger;
 public class WebApplication {
 
     private Set<HttpModule> modules;
-    private Activator loader;
-    private ILogger logger;
+    private ContextClassLoader loader;
+    private LogProvider logger;
     private WebApplicationStartupInfo startupInfo;
 
-    public Activator getLoader() {
+    public ContextClassLoader getLoader() {
         return loader;
     }
 
-    public ILogger getLogger() {
-        if (logger == null) {
-            logger = ((ServiceProvider) startupInfo.service).getService(ILogger.class);
-        }
-        return logger;
+    public Logger getLogger() {
+        return loader.getLogger();
     }
 
-    private void init(WebApplicationStartupInfo info, Activator activator) {
+    private void init(WebApplicationStartupInfo info, ContextClassLoader activator) {
         startupInfo = info;
         loader = activator;
 
@@ -59,7 +57,7 @@ public class WebApplication {
                     modules.add(mod);
                 }
             } catch (InstantiationException | ClassNotFoundException ex) {
-                Logger.error("WebApplication.init(modules)", ex);
+                loader.getLogger().error("WebApplication.init(modules)", ex);
             }
         }
 

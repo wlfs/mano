@@ -18,7 +18,7 @@ public interface HttpServer {
     public String getVirtualPath();
     
     
-    public String mapPath(String vpath);
+    public String mapPath(String...vpaths);
     
     public String getVersion();
     

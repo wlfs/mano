@@ -7,26 +7,32 @@
  */
 
 import java.io.FileNotFoundException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Stack;
 import java.util.UUID;
 import java.util.logging.Level;
 import mano.Activator;
+import mano.ContextClassLoader;
+import mano.net.Task;
+import mano.otpl.python.PyViewEngine;
 import mano.service.Service;
 import mano.service.ServiceContainer;
 import mano.service.ServiceProvider;
-import mano.net.Task;
-import mano.otpl.python.PyViewEngine;
 import mano.util.CachedObjectFactory;
-import mano.util.logging.Logger;
-import mano.util.logging.ILogger;
 import mano.util.NameValueCollection;
 import mano.util.ObjectFactory;
 import mano.util.ProviderMapper;
 import mano.util.ThreadPool;
 import mano.util.Utility;
+import mano.util.logging.CansoleLogProvider;
+import mano.util.logging.LogProvider;
+import mano.util.logging.Logger;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
 import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
@@ -34,7 +40,7 @@ import org.w3c.dom.NodeList;
  * @author jun
  */
 public class Program implements ServiceContainer, ServiceProvider {
-
+    
     @Override
     public Service getService(String serviceName) {
         if (serviceName != null && services.containsKey(serviceName)) {
@@ -42,174 +48,188 @@ public class Program implements ServiceContainer, ServiceProvider {
         }
         return null;
     }
-
+    
     @Override
     public <T> T getService(Class<T> serviceType) {
         if (serviceType == null) {
             return null;
         }
-        if (ILogger.class.getName().equals(serviceType.getName())) {
+        if (Logger.class.getName().equals(serviceType.getName())) {
             return (T) logger;
-        } else if (Activator.class.getName().equals(serviceType.getName())) {
+        } else if (ContextClassLoader.class.getName().equals(serviceType.getName()) || ClassLoader.class.getName().equals(serviceType.getName())) {
             return (T) loader;
         }
         return null;
     }
-
-    public static class test implements Runnable {
-
-        Program pp;
-        UUID id;
-
-        public test(Program p) {
-            pp = p;
-            id = UUID.randomUUID();
-        }
-        public int num = 0;
-        public String kk = "";
-        /*@Override
-         protected void finalize(){
-         System.out.println("finalize "+id);
-         //pp.factory.put(this);
-            
-         }*/
-        int x = 0;
-
-        public void call() {
-            System.out.println("this is call result");
-        }
-
-        @Override
-        public void run() {
-            System.out.println("run:" + (x > 0 ? "++++++++++++++" : ""));
-            x++;
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException ex) {
-                java.util.logging.Logger.getLogger(Program.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            ThreadPool.execute(pp.factory.get());
-            System.gc();
-        }
-    }
-
-    ILogger logger;
-    Activator loader;
+    
+    Logger logger;
+    ContextClassLoader loader;
     NameValueCollection<Service> services;
-    CachedObjectFactory<test> factory;
     String bootstrapPath;
-
+    
     private void init() throws FileNotFoundException {
-
-        loader = new Activator();
-        bootstrapPath = System.getProperty("user.dir");
-        try {
-            loader.register(Utility.combinePath(bootstrapPath, "lib").toString());
-        } catch (Exception ignored) {
-
-        }
-
-        /*Program me=this;
-         factory = new CachedObjectFactory<>(new ObjectFactory<test>(){
-
-         @Override
-         public test create() {
-         return new test(me);
-         }
-            
-         });
-         ThreadPool.execute(factory.get());
-         ThreadPool.execute(factory.get());
-         */
+        bootstrapPath = Utility.combinePath(System.getProperty("user.dir"), "server").toString();
+        loader = new ContextClassLoader(new Logger(new CansoleLogProvider()));
+        loader.register(Utility.combinePath(bootstrapPath, "bin").toString());
+        loader.register(Utility.combinePath(bootstrapPath, "bin/lib").toString());
     }
-
-    void configServices() throws XmlException, InstantiationException, ClassNotFoundException {
-        services = new NameValueCollection<>();
-        String configPath = Utility.combinePath(bootstrapPath, "server/config.xml").toString();
+    
+    private void loadParams(XmlHelper helper, Node node, Map<String, String> result) throws XmlException {
+        NodeList nodes = helper.selectNodes(node, "params/param");
+        NamedNodeMap attrs;
+        if (nodes.getLength() <= 0) {
+            return;
+        }
+        for (int i = 0; i < nodes.getLength(); i++) {
+            attrs = nodes.item(i).getAttributes();
+            
+        }
+    }
+    
+    private void loadConfig() throws XmlException, InstantiationException, ClassNotFoundException {
+        String configPath = Utility.combinePath(bootstrapPath, "config.xml").toString();
         XmlHelper helper = XmlHelper.load(configPath);
         NamedNodeMap attrs;
-        NodeList nodes = helper.selectNodes("/configuration/provider.mapping/map/dependency");
-        for (int i = 0; i < nodes.getLength(); i++) {
-            attrs = nodes.item(i).getAttributes();
+        NodeList nodes;
+        Node node, root;
+        String s;
+        NameValueCollection<String> params = new NameValueCollection<>();
+        root = helper.selectNode("/configuration/server");
+        if (root == null) {
+            return;
+        }
+
+        //服务依赖
+        nodes = helper.selectNodes(root, "dependency/path");
+        //ArrayList<String> list=new ArrayList();
+        String[] arr;
+        if (nodes != null) {
+            for (int i = 0; i < nodes.getLength(); i++) {
+                attrs = nodes.item(i).getAttributes();
+                
+                try {
+                    s = attrs.getNamedItem("value").getNodeValue().trim();
+                    if (s.startsWith("~/") || s.startsWith("~\\")) {
+                        s = Utility.combinePath(bootstrapPath, s.substring(2)).toString();
+                    } else if (s.startsWith("/") || s.startsWith("\\")) {
+                        s = Utility.combinePath(bootstrapPath, s.substring(1)).toString();
+                    }
+                    loader.register(s);
+                } catch (Exception ex) {
+                    Logger.getDefault().warn(null, ex);
+                }
+            }
+        }
+        nodes = helper.selectNodes(root, "dependency/export");
+        if (nodes != null) {
+            for (int i = 0; i < nodes.getLength(); i++) {
+                attrs = nodes.item(i).getAttributes();
+                try {
+                    loader.registerExport(attrs.getNamedItem("name").getNodeValue().trim(), attrs.getNamedItem("class").getNodeValue().trim());
+                } catch (Exception ex) {
+                    Logger.getDefault().warn(null, ex);
+                }
+            }
+        }
+
+        //重置日志记录器
+        node = helper.selectNode(root, "logger");
+        if (node != null) {
+            LogProvider provider = null;
+            attrs = node.getAttributes();
             try {
-                //LogManager.getLogger();
-                ProviderMapper.addPath(Utility.combinePath(bootstrapPath, attrs.getNamedItem("path").getNodeValue()).toString());
+                s = attrs.getNamedItem("provider").getNodeValue().trim();
+                arr = Utility.split(s, ":", true);
+                if (arr[0].equals("class")) {
+                    provider = (LogProvider) loader.newInstance(arr[1]);
+                }
             } catch (Exception ignored) {
-                ignored.printStackTrace();
+            }
+            
+            if (provider != null) {
+                params.clear();
+                nodes = helper.selectNodes(node, "params/param");
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    attrs = nodes.item(i).getAttributes();
+                    try {
+                        params.put(attrs.getNamedItem("name").getNodeValue().trim(), nodes.item(i).getTextContent().trim());
+                    } catch (Exception ignored) {
+                    }
+                }
+                provider.init(params);
+                loader.setLogger(new Logger(provider));
             }
         }
-        nodes = helper.selectNodes("/configuration/provider.mapping/map");
-        for (int i = 0; i < nodes.getLength(); i++) {
-            attrs = nodes.item(i).getAttributes();
-            try {
-                ProviderMapper.map(attrs.getNamedItem("name").getNodeValue(), attrs.getNamedItem("type").getNodeValue(), attrs.getNamedItem("path").getNodeValue());
-            } catch (Exception ex) {
-                //logger.error("config:provider.mapping", ex);
-                ex.printStackTrace();
+
+        //实例化服务
+        services = new NameValueCollection<>();
+        NodeList nodes2;
+        nodes = helper.selectNodes(root, "services/service");
+        if (nodes != null) {
+            for (int i = 0; i < nodes.getLength(); i++) {
+                attrs = nodes.item(i).getAttributes();
+                
+                String name = attrs.getNamedItem("name").getNodeValue();
+                String type = attrs.getNamedItem("class").getNodeValue();
+                
+                params.clear();
+                params.put("path:bootstrap", this.bootstrapPath);
+                params.put("path:config", configPath);
+                params.put("service:name", name);
+                nodes2 = helper.selectNodes(nodes.item(i), "params/param");
+                if (nodes2 != null) {
+                    for (int j = 0; j < nodes2.getLength(); j++) {
+                        attrs = nodes2.item(j).getAttributes();
+                        try {
+                            params.put(attrs.getNamedItem("name").getNodeValue().trim(), nodes2.item(j).getTextContent().trim());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+                try {
+                    Object obj= loader.newInstance(type);
+                    Class<?> c1=obj.getClass();
+                    Class<?> c2=Service.class;
+                    
+                    Service service = (Service) loader.newInstance(type);
+                    service.init(this, params);
+                    services.put(name, service);
+                } catch (Exception ignored) {
+                    loader.getLogger().error(null, ignored);
+                }
             }
-        }
-
-        
-        logger = Logger.getLogger(Logger.class.getName());
-
-        nodes = helper.selectNodes("/configuration/services/service");
-        NameValueCollection<String> params;
-        for (int i = 0; i < nodes.getLength(); i++) {
-            attrs = nodes.item(i).getAttributes();
-
-            String name = attrs.getNamedItem("name").getNodeValue();
-            String type = attrs.getNamedItem("type").getNodeValue();
-
-            params = new NameValueCollection<>();
-            params.put("path:bootstrap", this.bootstrapPath);
-            params.put("path:config", configPath);
-            params.put("service:name", name);
-            NodeList conns = helper.selectNodes(nodes.item(i), "params/param");
-
-            for (int j = 0; j < conns.getLength(); j++) {
-                attrs = conns.item(j).getAttributes();
-                params.put(attrs.getNamedItem("name").getNodeValue(), conns.item(j).getTextContent());
-            }
-            Service service = (Service) loader.newInstance(type);
-            service.init(this, params);//try 
-            services.put(name, service);
         }
     }
-
+    
     private void loop() {
         while (true) {
             try {
                 Thread.sleep(1000 * 1000);
             } catch (InterruptedException e) {
-                Logger.error("", e);
+                Logger.getDefault().warn("", e);
             }
         }
     }
 
-    /**
-     * @param args the command line arguments:
-     * <p>
-     *
-     * </p>
-     */
     public static void main(String[] args) {
-
+        
         Program server = new Program();
-
+        
         try {
             server.init();
-
-            server.configServices();
-
+            
+            server.loadConfig();
+            
             server.services.values().stream().forEach((service) -> {
                 ThreadPool.execute(service);
             });
-
+            
             server.loop();
-
+            
         } catch (Exception ex) {
-            Logger.error("", ex);
+            Logger.getDefault().fatal("", ex);
+            System.exit(0);
         }
     }
-
+    
 }

@@ -12,6 +12,9 @@ import mano.http.HttpPostFile;
 import mano.http.HttpRequest;
 import mano.http.HttpResponse;
 import mano.util.json.JsonConvert;
+import mano.util.json.JsonConverter;
+import mano.util.logging.CansoleLogProvider;
+import mano.util.logging.Logger;
 
 /**
  *
@@ -37,40 +40,40 @@ public abstract class Controller {
         service = rs;
         context = rs.getContext();
     }
-    
-    public void set(String name,Object value){
+
+    public void set(String name, Object value) {
         service.set(name, value);
     }
-    
-    public Object get(String name){
+
+    public Object get(String name) {
         return service.get(name);
     }
-    
-    public String query(String name){
+
+    public String query(String name) {
         return service.getContext().getRequest().query().get(name);
     }
-    
-    public String form(String name){
+
+    public String form(String name) {
         return service.getContext().getRequest().form().get(name);
     }
-    
-    public HttpPostFile file(String name){
+
+    public HttpPostFile file(String name) {
         return service.getContext().getRequest().files().get(name);
     }
-    
-    public void session(String name,Object value){
+
+    public void session(String name, Object value) {
         service.getContext().getSession().set(name, value);
     }
-    
-    public Object session(String name){
+
+    public Object session(String name) {
         return service.getContext().getSession().get(name);
     }
-    
-    public void cookie(String name,Object value){
+
+    public void cookie(String name, Object value) {
         service.getContext().getResponse().getCookie().set(name, value);
     }
-    
-    public String cookie(String name){
+
+    public String cookie(String name) {
         return service.getContext().getRequest().getCookie().get(name);
     }
 
@@ -101,10 +104,18 @@ public abstract class Controller {
         service.getContext().getResponse().setContentType(contentType);
         service.getContext().getResponse().write(content);
     }
+    JsonConverter jsonConverter;
 
     protected void json(Object src) {
+        if (jsonConverter == null) {
+            jsonConverter = JsonConvert.getConverter(service.getContext().getApplication().getLoader());
+        }
         service.getContext().getResponse().setContentType("application/json;charset=utf-8");
-        service.getContext().getResponse().write(JsonConvert.serialize(src));
+        service.getContext().getResponse().write(jsonConverter.serialize(src));
+    }
+
+    public Logger getLogger() {
+        return new Logger(new CansoleLogProvider());
     }
 
 }

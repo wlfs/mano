@@ -34,13 +34,13 @@ public class OtplViewEngine extends ViewEngine {
 
     EmitParser parser = new EmitParser();
     Interpreter interpreter = new Interpreter();
-
+    Logger logger=Logger.getDefault();//TODO:
     @Override
     public String compile(String tempdir, String tplName) {
         try {
             parser.open(tplName);
         } catch (FileNotFoundException ex) {
-            Logger.error(null, ex);
+            logger.error(null, ex);
             
         }
 
@@ -60,7 +60,7 @@ public class OtplViewEngine extends ViewEngine {
             parser.compile(fs);
             fs.close();
         } catch (Exception ex) {
-            Logger.error(null, ex);
+            logger.error(null, ex);
             //Logger.getLogger(Paraser.class.getName()).log(Level.SEVERE, null, ex);
         }
         return tplName;
@@ -112,7 +112,7 @@ public class OtplViewEngine extends ViewEngine {
             interpreter.setOut(proxy);
             interpreter.exec(target_file.toString());
         } catch (Exception ex) {
-            Logger.error(null, ex);
+            logger.error(null, ex);
             try {
                 service.getContext().getResponse().write(ex.getMessage());
                 //PrintStream ps=new PrintStream(proxy,true);
@@ -122,7 +122,7 @@ public class OtplViewEngine extends ViewEngine {
                 
             } catch (Exception e) {
                 //
-                Logger.error(null, e);
+                logger.error(null, e);
             }
             //Logger.getLogger(OtplViewEngine.class.getName()).log(Level.SEVERE, null, ex);
         }

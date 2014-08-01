@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
+import mano.util.Utility;
 import mano.util.logging.Logger;
 
 /**
@@ -35,7 +36,7 @@ public final class Activator {
     }
 
     public Activator() {
-        this(ClassLoader.getSystemClassLoader());
+        this.current = ClassLoader.getSystemClassLoader();
         this.paths = new HashSet<>();
         this.mappings = new HashMap<>();
     }
@@ -52,6 +53,7 @@ public final class Activator {
         this.mappings.putAll(parent.mappings);
     }
 
+    @Deprecated
     public synchronized Activator load(String filename) throws FileNotFoundException, MalformedURLException {
         File file = new File(filename);
         if (!file.exists()) {
@@ -82,12 +84,12 @@ public final class Activator {
         for (String path : files) {
             file = new File(path);
             if (!file.exists()) {
-                Logger.warn("Activator.loadAll:File not found.path:%s", path);
+                //Logger.warn("Activator.loadAll:File not found.path:%s", path);
             }
 
             if (!file.isDirectory()) {
                 if (!file.getName().toLowerCase().endsWith(".jar")) {
-                    Logger.warn("Activator.loadAll:File not a JAR file.path:%s", path);
+                    //Logger.warn("Activator.loadAll:File not a JAR file.path:%s", path);
                 }
                 if (!paths.contains(file.getParent())) {
                     paths.add(file.getParent());
@@ -95,7 +97,7 @@ public final class Activator {
                 try {
                     set.add(file.toURI().toURL());
                 } catch (MalformedURLException ex) {
-                    Logger.warn("Activator.loadAll:toURL fatal.", ex);
+                    //Logger.warn("Activator.loadAll:toURL fatal.", ex);
                 }
             } else {
                 file.listFiles((File f) -> {//java 8
@@ -107,7 +109,7 @@ public final class Activator {
                                 paths.add(f.getAbsolutePath());
                             }
                         } catch (MalformedURLException ex) {
-                            Logger.warn("Activator.loadAll:toURL fatal.", ex);
+                            //Logger.warn("Activator.loadAll:toURL fatal.", ex);
                         }
                     }
                     return false;
@@ -225,4 +227,41 @@ public final class Activator {
     public Object newInstance(String classFullname, Object... args) throws InstantiationException, ClassNotFoundException {
         return this.newInstance(this.getClass(classFullname), args);
     }
+    //http://www.blogjava.net/DLevin/archive/2012/11/10/391122.html
+    //http://blog.csdn.net/chen77716/article/details/34790
+    private class Registration {
+
+        public String name;
+        public long version;
+        Registration[] entries;
+        public String path;
+        public int major;
+        public int minor;
+        public int build;
+        public int revision;
+        public ClassLoader loader;
+        private Map<String, String> exports;
+    }
+
+    public static void main(String... args) {
+
+        ContextClassLoader scl=new ContextClassLoader(null);
+        scl.register("E:\\repositories\\java\\mano\\mano.server\\server\\bin\\ext\\hibernate-release-4.3.5.Final\\required");
+        
+        try {
+            System.out.println(scl.loadClass("org.hibernate.SessionFactory"));
+        } catch (ClassNotFoundException ex) {
+            scl.getLogger().error(null, ex);
+        }
+        
+        
+        Version ver=new Version(1000000,0,0,3);
+        
+        
+        
+        System.out.println("ver num:"+ver.value);
+        System.out.println("ver:"+ver);
+        
+    }
+
 }

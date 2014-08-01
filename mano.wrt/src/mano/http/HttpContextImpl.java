@@ -201,7 +201,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
     }
 
     void onError(Throwable t) {
-        Logger.debug("HttpContextImpl.onError", t);
+        service.getLogger().debug("HttpContextImpl.onError", t);
         try {
             int status;
             if (t instanceof HttpException) {
@@ -220,7 +220,7 @@ class HttpContextImpl extends HttpContext implements Runnable, Disposable {
             rsp.end();
             //t.printStackTrace();
         } catch (Exception ex) {
-            Logger.error("", ex);
+            service.getLogger().error("", ex);
         }
     }
 

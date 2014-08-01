@@ -8,7 +8,7 @@
 package mano.service;
 
 import java.util.Map;
-import mano.util.logging.ILogger;
+import mano.util.logging.LogProvider;
 
 /**
  *

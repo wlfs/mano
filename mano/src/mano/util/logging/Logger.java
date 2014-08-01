@@ -48,153 +48,151 @@ public final class Logger {
              */
             OFF = 1000;
 
-    private static ILogger logger;
-
-    public static ILogger getLogger(String providerName) throws InstantiationException {
-        return (ILogger) ProviderMapper.newInstance(providerName, Logger.class);
-    }
-
-    private static ILogger getLogger() {
-        if (logger == null) {
-            try {
-                logger = getLogger(Logger.class.getName());
-            } catch (InstantiationException igored) {
-                logger=new CansoleLogger();
-            }
+    private LogProvider provider;
+    
+    private static Logger defLogger;
+    
+    public static Logger getDefault() {
+        if (defLogger == null) {
+            defLogger = new Logger(new CansoleLogProvider());
         }
-        return logger;
+        return defLogger;
     }
 
-    public static boolean isInfoEnabled() {
-        return getLogger().isEnabled(Logger.INFO);
+    public Logger(LogProvider provider) {
+        this.provider = provider;
     }
 
-    public static void info(Object message) {
+    public boolean isInfoEnabled() {
+        return provider.isEnabled(Logger.INFO);
+    }
+
+    public void info(Object message) {
         if (isInfoEnabled()) {
-            getLogger().log(Logger.INFO, message);
+            provider.write(Logger.INFO, message);
         }
     }
 
-    public static void info(String message, Throwable t) {
+    public void info(String message, Throwable t) {
         if (isInfoEnabled()) {
-            getLogger().log(Logger.INFO, message, t);
+            provider.write(Logger.INFO, message, t);
         }
     }
 
-    public static void info(String format, Object... args) {
+    public void info(String format, Object... args) {
         if (isInfoEnabled()) {
-            getLogger().log(Logger.INFO, format, args);
+            provider.write(Logger.INFO, format, args);
         }
     }
 
-    public static boolean isDebugEnabled() {
-        return getLogger().isEnabled(Logger.DEBUG);
+    public boolean isDebugEnabled() {
+        return provider.isEnabled(Logger.DEBUG);
     }
 
-    public static void debug(Object message) {
+    public void debug(Object message) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.DEBUG, message);
+            provider.write(Logger.DEBUG, message);
         }
     }
 
-    public static void debug(String message, Throwable t) {
+    public void debug(String message, Throwable t) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.DEBUG, message, t);
+            provider.write(Logger.DEBUG, message, t);
         }
     }
 
-    public static void debug(String format, Object... args) {
+    public void debug(String format, Object... args) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.DEBUG, format, args);
+            provider.write(Logger.DEBUG, format, args);
         }
     }
 
-    public static boolean isTraceEnabled() {
-        return getLogger().isEnabled(Logger.TRACE);
+    public boolean isTraceEnabled() {
+        return provider.isEnabled(Logger.TRACE);
     }
 
-    public static void trace(Object message) {
+    public void trace(Object message) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.TRACE, message);
+            provider.write(Logger.TRACE, message);
         }
     }
 
-    public static void trace(String message, Throwable t) {
+    public void trace(String message, Throwable t) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.TRACE, message, t);
+            provider.write(Logger.TRACE, message, t);
         }
 
     }
 
-    public static void trace(String format, Object... args) {
+    public void trace(String format, Object... args) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.TRACE, format, args);
+            provider.write(Logger.TRACE, format, args);
         }
     }
 
-    public static boolean isErrorEnabled() {
-        return getLogger().isEnabled(Logger.ERROR);
+    public boolean isErrorEnabled() {
+        return provider.isEnabled(Logger.ERROR);
     }
 
-    public static void error(Object message) {
+    public void error(Object message) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.ERROR, message);
+            provider.write(Logger.ERROR, message);
         }
     }
 
-    public static void error(String message, Throwable t) {
+    public void error(String message, Throwable t) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.ERROR, message, t);
+            provider.write(Logger.ERROR, message, t);
         }
     }
 
-    public static void error(String format, Object... args) {
+    public void error(String format, Object... args) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.ERROR, format, args);
+            provider.write(Logger.ERROR, format, args);
         }
     }
 
-    public static boolean isWarnEnabled() {
-        return getLogger().isEnabled(Logger.WARNING);
+    public boolean isWarnEnabled() {
+        return provider.isEnabled(Logger.WARNING);
     }
 
-    public static void warn(Object message) {
+    public void warn(Object message) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.WARNING, message);
+            provider.write(Logger.WARNING, message);
         }
     }
 
-    public static void warn(String message, Throwable t) {
+    public void warn(String message, Throwable t) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.WARNING, message, t);
+            provider.write(Logger.WARNING, message, t);
         }
     }
 
-    public static void warn(String format, Object... args) {
+    public void warn(String format, Object... args) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.WARNING, format, args);
+            provider.write(Logger.WARNING, format, args);
         }
     }
 
-    public static boolean isFatalEnabled() {
-        return getLogger().isEnabled(Logger.FATAL);
+    public boolean isFatalEnabled() {
+        return provider.isEnabled(Logger.FATAL);
     }
 
-    public static void fatal(Object message) {
+    public void fatal(Object message) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.FATAL, message);
+            provider.write(Logger.FATAL, message);
         }
     }
 
-    public static void fatal(String message, Throwable t) {
+    public void fatal(String message, Throwable t) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.FATAL, message, t);
+            provider.write(Logger.FATAL, message, t);
         }
     }
 
-    public static void fatal(String format, Object... args) {
+    public void fatal(String format, Object... args) {
         if (isDebugEnabled()) {
-            getLogger().log(Logger.FATAL, format, args);
+            provider.write(Logger.FATAL, format, args);
         }
     }
 }

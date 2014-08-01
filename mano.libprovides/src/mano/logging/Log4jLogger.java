@@ -8,8 +8,9 @@
 package mano.logging;
 
 import java.io.FileNotFoundException;
+import java.util.Map;
 import java.util.logging.Level;
-import mano.util.logging.ILogger;
+import mano.util.logging.LogProvider;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 
@@ -17,7 +18,7 @@ import org.apache.logging.log4j.LogManager;
  *
  * @author jun
  */
-public class Log4jLogger implements ILogger {
+public class Log4jLogger implements LogProvider {
 
     Logger logger;
 
@@ -150,17 +151,22 @@ public class Log4jLogger implements ILogger {
     }
 
     @Override
-    public void log(int level, Object obj) {
+    public void write(int level, Object obj) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public void log(int level, String format, Object... args) {
+    public void write(int level, String format, Object... args) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public void log(int level, String message, Throwable t) {
+    public void write(int level, String message, Throwable t) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void init(Map<String, String> params) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

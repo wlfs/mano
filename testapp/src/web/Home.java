@@ -46,7 +46,7 @@ public class Home extends Controller {
             this.context.getSession().set("user", id);
             System.out.println("还未登录,id:" + id);
         }
-        
+
         this.set("title", "hello");
         this.set("title", "OPTL-IL TEST");
         this.set("obj", this);
@@ -75,7 +75,7 @@ public class Home extends Controller {
                 try {
                     url = new File(this.context.getServer().mapPath("config/hibernate.cfg.xml")).toURI().toURL();
                 } catch (Exception ex) {
-                    Logger.fatal("", ex);
+                    getLogger().fatal("", ex);
                     throw ex;
                 }
                 Configuration cfg = new Configuration().configure(url);
@@ -95,15 +95,19 @@ public class Home extends Controller {
     @UrlMapping
     void dao() throws Exception {
         Session session = getSession();
-        
+
         dao.Employee entity = new dao.Employee();
         entity.setFirstName("张");
         entity.setLastName("三");
-        Transaction trans=session.beginTransaction();
+
+        testapp.model.Product p = new testapp.model.Product();
+        p.setName("西瓜");
+        Transaction trans = session.beginTransaction();
         session.save(entity);
+        session.save(p);
         trans.commit();
         session.flush();
-        this.json(entity);
+        this.json(new Object[]{entity, p});
         session.close();
     }
 

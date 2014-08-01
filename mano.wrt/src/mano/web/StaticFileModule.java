@@ -43,8 +43,8 @@ public class StaticFileModule implements HttpModule {
 
     private boolean process(HttpContext context, String path, String mime) {
 
-        Logger.debug("process static path:" + path);
-
+        context.getApplication().getLogger().debug("process static path:" + path);
+        
         File file = new File(path);
         if (!file.exists() || !file.isFile()) {
             return false;
