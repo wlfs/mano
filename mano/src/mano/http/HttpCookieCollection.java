@@ -13,10 +13,10 @@ import java.util.Map.Entry;
 import mano.DateTime;
 
 /**
- *
+ * 提供操作和存放 HTTP Cookie 的实现。
  * @author jun <jun@diosay.com>
  */
-public class HttpCookie implements HttpResponseCookie {
+public class HttpCookieCollection implements HttpResponseCookie {
 
     private Map<String, CookieEntry> entries = new HashMap<>();
 
@@ -85,23 +85,43 @@ public class HttpCookie implements HttpResponseCookie {
         private String path;
         private boolean secure;
         private boolean httponly;
-
+        private CookieEntry(){}
+        
+        /**
+         * 获取 Cookie 的名称。
+         * @return 
+         */
         @Override
         public String getKey() {
             return key;
         }
 
+        /**
+         * 获取 Cookie 的值。
+         * @return 
+         */
         @Override
         public String getValue() {
             return value;
         }
 
+        /**
+         * 永远不支持该操作。
+         * @param value
+         * @return 
+         */
+        @Deprecated
         @Override
         public String setValue(String value) {
-            this.value = value;
-            return value;
+            throw new UnsupportedOperationException();
+            //this.value = value;
+            //return value;
         }
 
+        /**
+         * 返回 Cookie 的 HTTP 协议字符串。
+         * @return 
+         */
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();

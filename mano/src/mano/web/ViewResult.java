@@ -36,7 +36,6 @@ public class ViewResult implements ActionResult {
         }
         service.setPath(path);
         engine.render(service);
-        
     }
     
 }

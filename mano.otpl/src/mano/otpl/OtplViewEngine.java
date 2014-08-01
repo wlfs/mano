@@ -51,24 +51,18 @@ public class OtplViewEngine extends ViewEngine {
                 f.delete();
             }
             f.createNewFile();
-            //File f = java.io.File.createTempFile(Integer.toHexString(tplName.hashCode()), ".py");
             tplName = f.getAbsolutePath();
-            System.out.println(tplName);
-            //parser.compile(tplName);
             FileOutputStream fs = new FileOutputStream(f);
-            //OutputStreamWriter write = new OutputStreamWriter(fs, "UTF-8");
             parser.compile(fs);
             fs.close();
         } catch (Exception ex) {
             logger.error(null, ex);
-            //Logger.getLogger(Paraser.class.getName()).log(Level.SEVERE, null, ex);
         }
         return tplName;
     }
 
     @Override
     public void render(RequestService service, String tmpName) {
-        //interpreter.init();
         for (Map.Entry<String, Object> entry : service.getEntries()) {
             interpreter.set(entry.getKey(), entry.getValue());
         }
@@ -87,24 +81,20 @@ public class OtplViewEngine extends ViewEngine {
     @Override
     public void render(RequestService service) {
         String source = Utility.combinePath(this.getViewdir(), service.getRequestPath()).toString();
-        String target = Integer.toHexString(this.getViewdir().hashCode()) + "$" + Integer.toHexString(source.hashCode());
+        String target = Integer.toHexString(this.getViewdir().hashCode()) + "$" + Integer.toHexString(source.hashCode())+".otc";
 
         File target_file = new File(Utility.combinePath(this.getTempdir(), target).toUri());
         OutProxy proxy = new OutProxy();
         proxy.context = service.getContext();
         try {
-            if (target_file.exists()) { //test
+            if (target_file.exists()) {
                 target_file.delete();
             }
 
-            if (true) {//!target_file.exists()
-
-                //File source_file = new File(Utility.combinePath(this.getTempdir(), target).toUri());
+            if (true) {
                 target_file.createNewFile();
                 parser.compile(source, target_file.toString());
             }
-
-            //InputStream input = new FileInputStream(target_file);
             for (Map.Entry<String, Object> entry : service.getEntries()) {
                 proxy.args.put(entry.getKey(), entry.getValue());
             }
@@ -114,17 +104,10 @@ public class OtplViewEngine extends ViewEngine {
         } catch (Exception ex) {
             logger.error(null, ex);
             try {
-                service.getContext().getResponse().write(ex.getMessage());
-                //PrintStream ps=new PrintStream(proxy,true);
-                //ex.printStackTrace(ps);
-                //ps.flush();
-                //ps.close();
-                
+                service.getContext().getResponse().write(ex.getMessage());  
             } catch (Exception e) {
-                //
                 logger.error(null, e);
             }
-            //Logger.getLogger(OtplViewEngine.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

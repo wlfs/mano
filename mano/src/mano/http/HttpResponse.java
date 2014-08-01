@@ -20,6 +20,7 @@ import mano.util.logging.Logger;
  * http://msdn.microsoft.com/zh-cn/library/system.web.httpworkerrequest(v=vs.110).aspx
  * http://docs.oracle.com/javaee/7/api/javax/servlet/ServletResponse.html
  */
+
 /**
  * 封装来自处理程序操作的 HTTP 响应信息。
  *
@@ -172,7 +173,7 @@ public abstract class HttpResponse {
             this.end();
         }
     }
-    private HttpCookie cookie = new HttpCookie();
+    private HttpCookieCollection cookie = new HttpCookieCollection();
 
     public HttpResponseCookie getCookie() {
         return cookie;

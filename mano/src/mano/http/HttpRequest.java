@@ -98,11 +98,11 @@ public abstract class HttpRequest {
      * @return
      */
     public abstract Map<String, HttpPostFile> files();
-    private HttpCookie cookie;
+    private HttpCookieCollection cookie;
 
     public HttpRequestCookie getCookie() {
         if (cookie == null) {
-            cookie = new HttpCookie();
+            cookie = new HttpCookieCollection();
             String str = null;
             if (this.headers().containsKey("Cookie")) {
                 str = this.headers().get("Cookie").text();

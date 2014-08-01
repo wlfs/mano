@@ -63,7 +63,9 @@ public class Home extends Controller {
     @UrlMapping("/form")
     void form() {
         this.view();
-
+        this.getContext().getRequest().getCookie().iterator().forEach(mm->{
+        
+        });
     }
 
     Session getSession() throws Exception {

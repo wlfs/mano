@@ -15,7 +15,7 @@ import java.nio.channels.FileChannel;
 import java.util.Map.Entry;
 import mano.DateTime;
 import mano.InvalidOperationException;
-import mano.http.HttpCookie.CookieEntry;
+import mano.http.HttpCookieCollection.CookieEntry;
 import mano.web.HttpSession;
 
 /**

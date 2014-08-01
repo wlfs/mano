@@ -7,23 +7,12 @@
  */
 
 import java.io.FileNotFoundException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.Stack;
-import java.util.UUID;
-import java.util.logging.Level;
-import mano.Activator;
 import mano.ContextClassLoader;
-import mano.net.Task;
-import mano.otpl.python.PyViewEngine;
 import mano.service.Service;
 import mano.service.ServiceContainer;
 import mano.service.ServiceProvider;
-import mano.util.CachedObjectFactory;
 import mano.util.NameValueCollection;
-import mano.util.ObjectFactory;
-import mano.util.ProviderMapper;
 import mano.util.ThreadPool;
 import mano.util.Utility;
 import mano.util.logging.CansoleLogProvider;
@@ -68,7 +57,7 @@ public class Program implements ServiceContainer, ServiceProvider {
     String bootstrapPath;
     
     private void init() throws FileNotFoundException {
-        bootstrapPath = Utility.combinePath(System.getProperty("user.dir"), "server").toString();
+        bootstrapPath = Utility.combinePath(System.getProperty("user.dir"), "server").toString();//
         loader = new ContextClassLoader(new Logger(new CansoleLogProvider()));
         loader.register(Utility.combinePath(bootstrapPath, "bin").toString());
         loader.register(Utility.combinePath(bootstrapPath, "bin/lib").toString());

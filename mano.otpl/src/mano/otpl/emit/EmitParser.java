@@ -84,6 +84,11 @@ public class EmitParser extends Parser {
             }
             parent.open(Paths.get(Paths.get(this.getSourceName()).getParent().toString(), file).toString());
             parent.parseParent(dom);
+
+            if (parent.reader != null) {
+                parent.reader.close();
+            }
+
             //setparent
             //parent.parse(parent.dom, null, null);
         } else {//  if (this.conentDom == null)
@@ -170,12 +175,12 @@ public class EmitParser extends Parser {
                 OpCode elseLable = OpCode.label();
                 OpCode testLabel = OpCode.label();
                 OpCode continueLabel = OpCode.label();
-                
+
                 String part = Integer.toHexString(UUID.randomUUID().hashCode());
                 String iterator = id + "$itel_" + part;
                 String hasnext = id + "$hnxt_" + part;
                 String next = id + "$nxt_" + part;
-                
+
                 this.parseExpr(source.substring(found), 0);//参数
                 codes.add(OpCode.create(OpCodes.LOAD_ITERATOR));//将对象转换为迭代器，如果对象为null则会创建一个空迭代
                 codes.add(OpCode.create(OpCodes.SET_VAR, iterator));//保存到迭代器变量
@@ -185,7 +190,7 @@ public class EmitParser extends Parser {
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));//载入迭代器对象
                 codes.add(OpCode.create(OpCodes.LOAD_METHOD, 0, "next"));//找到迭代器方法
                 codes.add(OpCode.create(OpCodes.SET_VAR, next));//保存迭代器方法变量
-                
+
                 //第一次判断
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, iterator));
                 codes.add(OpCode.create(OpCodes.LOAD_VAR, hasnext));
