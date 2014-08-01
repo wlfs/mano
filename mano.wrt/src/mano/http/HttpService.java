@@ -483,8 +483,8 @@ public class HttpService extends Service implements ServiceProvider {
             } catch (IOException ignored) {
             }
 
-            //TODO: 服务器异常检测
-            this.cancelDisposing = true;//重复使用当前对象
+            //TODO: 服务器异常检测 
+            this.cancelDisposing = false;//重复使用当前对象
             Connection conn = accept();
             this.connect().accept(this);
 
