@@ -29,6 +29,7 @@ import mano.util.SafeHandle;
  *
  * @author jun <jun@diosay.com>
  */
+@Deprecated
 public abstract class Connection {
 
     private volatile long time;
@@ -158,7 +159,7 @@ public abstract class Connection {
         _writeQueued.offer(task.flush());
         this.flush();
     }
-
+    
     public synchronized void flush() {
         if (_writeQueued.isEmpty()) {
             return;
@@ -181,15 +182,18 @@ public abstract class Connection {
                     task = null;
                 } catch (WritePendingException ex) {
                     //ignored errors
+                    ex.printStackTrace();
                     writeHandle.release(task);
                 }
             }
         }
+        
         if (task != null) { //重复处理上步处理失败的任务
             try {
                 Thread.sleep(1);
             } catch (InterruptedException ex) {
                 //igored
+                ex.printStackTrace();
                 return;
             }
             this.flush();

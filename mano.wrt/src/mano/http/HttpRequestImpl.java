@@ -7,18 +7,15 @@
  */
 package mano.http;
 
-import mano.InvalidOperationException;
-import mano.io.Buffer;
-import mano.util.NameValueCollection;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import mano.InvalidOperationException;
+import mano.Resettable;
+import mano.io.Buffer;
+import mano.util.NameValueCollection;
 
 /**
  *
@@ -34,7 +31,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     Map<String, HttpPostFile> _files;
     Map<String, String> _query;
     long _contentLength;
-    HttpContextImpl context;
+    HttpConnection connection;
     AtomicLong remaining = new AtomicLong(0);
     boolean isChunked;
     boolean _hasPostData;
@@ -42,9 +39,9 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     boolean isFormMultipart;
     String _boundary;
 
-    public HttpRequestImpl(HttpContextImpl ctx) {
+    public HttpRequestImpl(HttpConnection conn) {
         this._headers = new HttpHeaderCollection();
-        context = ctx;
+        connection = conn;
     }
 
     @Override
@@ -178,16 +175,26 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
         if (isChunked) {
             throw new UnsupportedOperationException("chunked 编码未实现。");
-        } else if (context.requestHandler != null) {
-            //
-        } else if (this.isFormMultipart) {
-            context.requestHandler = new LoadExactDataHandler(this, new HttpMultipartParser(this._boundary));
-        } else if (this.isFormUrlEncoded) {
-            context.requestHandler = new LoadExactDataHandler(this, new HttpFormUrlEncodedParser());
+        } //else if (connection.requestHandler != null) {
+        //
+        //} 
+        else if (this.isFormMultipart || this.isFormUrlEncoded) {
+            try {
+                LoadExactDataHandler handler = this.connection.service.loadExactDataHandlerPool.get();
+                handler.request = this;
+                if (this.isFormUrlEncoded) {
+                    handler.handler = new HttpFormUrlEncodedParser();
+                } else {
+                    handler.handler = new HttpMultipartParser(this._boundary);
+                }
+                connection.read(handler);
+            } catch (Exception ex) {
+                throw new java.lang.RuntimeException(ex);
+            }
         } else {
             throw new InvalidOperationException("未设置处理程序。");
         }
-        context.run();
+        //connection.run();
         if (!postLoadFlag.get()) { //等待处理完成
             try {
                 postLoadFlag.wait(1000 * 60 * 5);
@@ -224,8 +231,15 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public void loadEntityBody(HttpEntityBodyHandler handler) throws InvalidOperationException, NullPointerException {
-        context.requestHandler = new LoadExactDataHandler(this,handler);
-        loadPostData();
+        try {
+            LoadExactDataHandler worker = this.connection.service.loadExactDataHandlerPool.get();
+            worker.request = this;
+            worker.handler = handler;
+            connection.read(worker);
+            //connection.requestHandler = new LoadExactDataHandler(this, new HttpMultipartParser(this._boundary));
+        } catch (Exception ex) {
+            throw new java.lang.RuntimeException(ex);
+        }
     }
 
     @Override
@@ -243,59 +257,6 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
         return this._headers;
     }
 
-    class LoadExactDataHandler implements HttpRequestHandler {
-
-        HttpRequestHandler handler;
-        HttpRequestImpl request;
-        HttpEntityBodyHandler handle;
-
-        LoadExactDataHandler(HttpRequestImpl req, HttpEntityBodyHandler hd) {
-            if(hd==null){
-                throw new NullPointerException();
-            }
-            request = req;
-            handle = hd;
-        }
-
-        @Override
-        public synchronized void onRead(Buffer buffer) throws UnsupportedEncodingException, HttpException, IOException {
-            handler = this;
-            int p = buffer.position();
-            handle.onRead(buffer, request);
-            int z = buffer.position() - p;
-
-            request.remaining.set(request.remaining.get() - z);
-            if (request.remaining.get() <= 0) {
-                handler = null;
-                synchronized (postLoadFlag) {
-                    request.postLoadFlag.set(true);
-                    request.postLoadFlag.notify();
-                }
-            }
-        }
-
-        @Override
-        public HttpRequestHandler getNextHandler() {
-            return handler;
-        }
-    }
-
-    @Deprecated
-    private void loadMultipart() throws InterruptedException {
-        synchronized (postLoadFlag) {
-            if (postLoadFlag.get() || !this.isFormMultipart) {
-                return;
-            }
-        }
-
-        loadPostData();
-        synchronized (postLoadFlag) {
-            if (!postLoadFlag.get()) {
-                postLoadFlag.wait(1000 * 60 * 5);
-            }
-        }
-    }
-
     @Override
     public Map<String, String> form() {
         loadPostData();
@@ -307,4 +268,39 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
         loadPostData();
         return this._files;
     }
+    
+    
+    
+    static class LoadExactDataHandler implements ReceivedHandler, Resettable {
+
+        HttpRequestImpl request;
+        HttpEntityBodyHandler handler;
+
+        @Override
+        public synchronized ReceivedHandler onRead(Buffer buffer) throws Exception {
+
+            int p = buffer.position();
+            handler.onRead(buffer, request);
+            int z = buffer.position() - p;
+
+            request.remaining.set(request.remaining.get() - z);
+            if (request.remaining.get() <= 0) {
+                synchronized (request.postLoadFlag) {
+                    request.postLoadFlag.set(true);
+                    request.postLoadFlag.notify();
+                }
+                request.connection.service.loadExactDataHandlerPool.put(this);
+                return null;
+            }
+            return this;
+        }
+
+        @Override
+        public void reset() {
+            handler = null;
+            request = null;
+        }
+    }
+
+    
 }

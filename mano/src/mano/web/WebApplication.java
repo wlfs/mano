@@ -7,22 +7,16 @@
  */
 package mano.web;
 
-import java.io.FileNotFoundException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import mano.Activator;
 import mano.ContextClassLoader;
-import mano.InvalidOperationException;
 import mano.http.HttpContext;
 import mano.http.HttpException;
 import mano.http.HttpModule;
 import mano.http.HttpStatus;
-import mano.service.ServiceProvider;
 import mano.util.Utility;
-import mano.util.logging.LogProvider;
 import mano.util.logging.Logger;
 
 /**
@@ -33,8 +27,8 @@ public class WebApplication {
 
     private Set<HttpModule> modules;
     private ContextClassLoader loader;
-    private LogProvider logger;
     private WebApplicationStartupInfo startupInfo;
+    private HashMap<String, Object> items = new HashMap<>();
 
     public ContextClassLoader getLoader() {
         return loader;
@@ -76,6 +70,22 @@ public class WebApplication {
         //session state
     }
 
+    private void destory() {
+        onDestory();
+        startupInfo.app = null;
+        if (modules != null) {
+            for (HttpModule module : modules) {
+                try {
+                    module.dispose();
+                } catch (Exception ingored) {
+                }
+            }
+            modules.clear();
+        }
+        items.clear();
+        loader=null;
+    }
+
     /**
      * 获取用户配置参数。
      *
@@ -98,17 +108,14 @@ public class WebApplication {
         return this.startupInfo.getServerInstance().getBaseDirectory();
     }
 
-    public final void destory() {
-
-    }
-    private HashMap<String,Object> items=new HashMap<>();
-    public Object get(String name){
-        if(items.containsKey(name)){
+    public Object get(String name) {
+        if (items.containsKey(name)) {
             return items.get(name);
         }
         return null;
     }
-    public void set(String name,Object value){
+
+    public void set(String name, Object value) {
         items.put(name, value);
     }
 
@@ -118,18 +125,30 @@ public class WebApplication {
      * @param context
      */
     public void init(HttpContext context) {
-        //触发begin事件
-        //context.setApplication(this);
-
-        //创建session
-        //获取session
-        //获取handlers
-        //循环调用
-        //System.out.println(context.getRequest().rawUrl());
         boolean processed = false;
-        for (HttpModule module : modules) {
-            if (module.handle(context)) {
-                processed = true;
+
+        ArrayList<String> paths = new ArrayList<>();
+        String path = context.getRequest().url().getPath();
+        paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path).toString());
+        if (path.endsWith("/")) {
+            for (String s : startupInfo.documents) {
+                paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path, s).toString());
+            }
+            paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path, startupInfo.controller, startupInfo.action).toString());
+            paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path, startupInfo.action).toString());
+        }
+        for (String p : paths) {
+            p = p.replace('\\', '/');
+            if (!p.startsWith("/")) {
+                p = "/" + p;
+            }
+            for (HttpModule module : modules) {
+                if (module.handle(context, p)) {
+                    processed = true;
+                    break;
+                }
+            }
+            if (processed) {
                 break;
             }
         }
@@ -137,6 +156,11 @@ public class WebApplication {
         if (!processed) {
             this.onError(context, new HttpException(HttpStatus.NotFound, "404 Not Found"));
         }
+
+        if (!context.isCompleted()) {
+            context.getResponse().end();
+        }
+
     }
 
     protected void onError(HttpContext context, Throwable t) {
@@ -159,5 +183,9 @@ public class WebApplication {
         } catch (Exception e) {
             //ignored
         }
+    }
+
+    protected void onDestory() {
+
     }
 }

@@ -12,5 +12,9 @@ package mano;
  * @author jun <jun@diosay.com>
  */
 public interface Resettable {
-    public void reset();
+    
+    /**
+     * 重置对象到对象初始状态.
+     */
+    void reset();
 }

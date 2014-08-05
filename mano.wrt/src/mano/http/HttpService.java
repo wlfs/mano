@@ -7,31 +7,35 @@
  */
 package mano.http;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
-import java.nio.channels.InterruptedByTimeoutException;
-import java.nio.file.Paths;
+import java.nio.channels.AsynchronousChannelGroup;
+import java.nio.channels.AsynchronousServerSocketChannel;
+import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.CompletionHandler;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import mano.Activator;
+import java.util.concurrent.atomic.AtomicInteger;
 import mano.ContextClassLoader;
 import mano.caching.CacheProvider;
+import mano.http.HttpConnection.FlushHandler;
+import mano.http.HttpConnection.ReceivedCompletionHandler;
+import mano.http.HttpConnection.ResolveRequestHeadersHandler;
+import mano.http.HttpConnection.ResolveRequestLineHandler;
+import mano.http.HttpConnection.SentCompletionHandler;
+import mano.http.HttpRequestImpl.LoadExactDataHandler;
 import mano.io.BufferPool;
 import mano.io.ByteBufferPool;
-import mano.net.AioConnection;
-import mano.net.Connection;
-import mano.net.Task;
 import mano.service.Service;
 import mano.service.ServiceContainer;
 import mano.service.ServiceProvider;
+import mano.util.CachedObjectPool;
 import mano.util.NameValueCollection;
 import mano.util.Pool;
 import mano.util.Utility;
 import mano.util.logging.CansoleLogProvider;
-import mano.util.logging.LogProvider;
 import mano.util.logging.Logger;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
@@ -56,15 +60,42 @@ public class HttpService extends Service implements ServiceProvider {
     private BufferPool _workBufferPool; //工作缓冲区池,4k
     private BufferPool _tempBufferPool; //临时缓冲区池,64k
     private ByteBufferPool _ioBufferPool; //io缓冲区池,512b
-    private Pool<HttpTask> _factory;
+    //private Pool<HttpTask> _factory;
     private String bootstrapPath;
     private String configPath;
     private ContextClassLoader loader;
     private Logger logger = new Logger(new CansoleLogProvider());
     private String name;
-
+    Pool<ReceivedCompletionHandler> receivedCompletionHandlerPool;
+    Pool<SentCompletionHandler> sentCompletionHandlerPool;
+    Pool<ResolveRequestLineHandler> resolveRequestLineHandlerPool;
+    Pool<ResolveRequestHeadersHandler> resolveRequestHeadersHandlerHandlerPool;
+    Pool<HttpConnection> connectionPool;
+    Pool<FlushHandler> flushHandlerPool;
+    Pool<LoadExactDataHandler> loadExactDataHandlerPool;
     public HttpService() {
-        _factory = new Pool<>(() -> new HttpTask(this));
+        //_factory = new Pool<>(() -> new HttpTask(this));
+        receivedCompletionHandlerPool=new CachedObjectPool<>(() -> {
+            return new ReceivedCompletionHandler();
+        },4,128);
+        sentCompletionHandlerPool=new CachedObjectPool<>(() -> {
+            return new SentCompletionHandler();
+        },4,128);
+        resolveRequestLineHandlerPool=new CachedObjectPool<>(() -> {
+            return new ResolveRequestLineHandler();
+        },4,128);
+        resolveRequestHeadersHandlerHandlerPool=new CachedObjectPool<>(() -> {
+            return new ResolveRequestHeadersHandler();
+        },4,128);
+        connectionPool=new CachedObjectPool<>(() -> {
+            return new HttpConnection();
+        },4,128);
+        flushHandlerPool=new CachedObjectPool<>(() -> {
+            return new FlushHandler();
+        },4,128);
+        loadExactDataHandlerPool=new CachedObjectPool<>(() -> {
+            return new LoadExactDataHandler();
+        },4,128);
     }
 
     BufferPool workBufferPool() {
@@ -79,10 +110,9 @@ public class HttpService extends Service implements ServiceProvider {
         return _ioBufferPool;
     }
 
-    Task newTask() {
-        return _factory.get();
-    }
-
+    /*Task newTask() {
+     return _factory.get();
+     }*/
     public Logger getLogger() {
         return this.logger;
     }
@@ -357,10 +387,10 @@ public class HttpService extends Service implements ServiceProvider {
             info.settings.put(attrs.getNamedItem("key").getNodeValue(), attrs.getNamedItem("value").getNodeValue());
         }
     }
-
-    boolean handle(HttpContextImpl context) {
+    
+    boolean createContext(HttpRequestImpl req) {
         WebApplicationStartupInfo info = null;
-        String host = context.getRequest().headers().get("Host").value();
+        String host = req.headers().get("Host").value();
         for (WebApplicationStartupInfo i : appInfos.values()) {
             if (i.matchHost(host)) {
                 info = i;
@@ -376,9 +406,10 @@ public class HttpService extends Service implements ServiceProvider {
             WebApplication app = info.getInstance();
             if (app != null) {
 
-                context._server = info.getServerInstance();
-                context._application = app;
-
+                HttpContextImpl context = new HttpContextImpl(req, new HttpResponseImpl(req.connection));
+                context.server = info.getServerInstance();
+                context.application = app;
+                req.connection.context = context;
                 //session
                 Service svc = this.getContainer().getService("cache.service");
                 if (svc != null && svc instanceof ServiceProvider) {
@@ -396,26 +427,84 @@ public class HttpService extends Service implements ServiceProvider {
 
         return false;
     }
-
-    void context(Connection conn) {
-        HttpContextImpl context = new HttpContextImpl(this, conn);
-        context.init();
+    
+    final ArrayList<AsynchronousServerSocketChannel> listeners = new ArrayList<>();
+    final ArrayList<AsynchronousSocketChannel> connections = new ArrayList<>();
+    final AtomicInteger cos=new AtomicInteger();
+    void onConnected(AsynchronousSocketChannel chan) {
+        connections.add(chan);
+        cos.addAndGet(1);
+        HttpConnection conn = new HttpConnection();
+        conn.service = this;
+        conn.buffer = this.workBufferPool().get();
+        conn.open(chan);
+        logger.info("current connections count:%s", cos.get());
     }
 
+    void onClosed(HttpConnection conn) {
+        synchronized (cos) {
+            connections.remove(conn.channel);
+            cos.addAndGet(-1);
+            cos.notify();
+        }
+        this.connectionPool.put(conn);
+        logger.info("current connections count:%s", cos.get());
+    }
+
+    
+    
     //启动服务
     @Override
     public void run() {
+        
         try {
-            AioConnection conn;
+            AsynchronousChannelGroup group = AsynchronousChannelGroup.withThreadPool(Executors.newCachedThreadPool());
+            AsynchronousServerSocketChannel chan;
             for (ConnectionInfo info : infos.values()) {
                 if (info.disabled) {
                     continue;
                 }
-                conn = new AioConnection(info.address, Executors.newCachedThreadPool());
-                conn.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-                conn.bind(100);
-                conn.accept(_factory.get());
+                chan = AsynchronousServerSocketChannel.open(group);
+                chan.bind(info.address, 1024);
+                chan.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+                listeners.add(chan);
+                
+                chan.accept(chan, new CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel>() {
 
+                    @Override
+                    public void completed(AsynchronousSocketChannel result, AsynchronousServerSocketChannel server) {
+                        onConnected(result);
+                        synchronized (cos) {
+                            while (cos.get() >= 100) {
+                                try {
+                                    //System.out.println("xxxxxxxxxxxx");
+                                    cos.wait(1000 * 5);
+                                } catch (InterruptedException ex) {
+                                    failed(ex,server);
+                                }
+                            }
+                            //System.out.println("yyyyyyyyyyyyyyyyyy");
+                            server.accept(server, this);
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable exc, AsynchronousServerSocketChannel server) {
+                        logger.fatal(null, exc);
+                        listeners.remove(server);
+                        try {
+                            server.close();
+                        } catch (IOException ex) {
+                            //ignored
+                        }
+                    }
+
+                });
+
+                //conn = new AioConnection(info.address, Executors.newCachedThreadPool());
+                //conn.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+                //conn.bind(100);
+                //conn.accept(_factory.get());
                 logger.info("listening for:%s", info.address.toString());
             }
         } catch (IOException e) {
@@ -443,144 +532,7 @@ public class HttpService extends Service implements ServiceProvider {
 
     //=========================================================
     private class ConnectionInfo {
-
         public InetSocketAddress address;
         public boolean disabled = false;
     }
-
-    private class HttpTask extends Task {
-
-        HttpService service;
-
-        public HttpTask(HttpService svc) {
-            service = svc;
-        }
-
-        @Override
-        public void dispose() {
-
-            if (!this.cancelDisposing) {
-                return;
-            }
-            super.dispose();/*return;*/
-
-            //service._factory.put(this);
-
-        }
-
-        @Override
-        protected void onAccepted() {
-
-            try {
-                accept().setOption(StandardSocketOptions.TCP_NODELAY, true);
-                accept().setOption(StandardSocketOptions.SO_REUSEADDR, true);
-                accept().setOption(StandardSocketOptions.SO_KEEPALIVE, false);
-            } catch (IOException e) {
-                logger.error(HttpTask.class.getName(), e);
-            }
-            try {
-                logger.info("connected:" + this.accept().getRemoteAddress());
-            } catch (IOException ignored) {
-            }
-
-            //TODO: 服务器异常检测 
-            this.cancelDisposing = false;//重复使用当前对象
-            Connection conn = accept();
-            this.connect().accept(this);
-
-            service.context(conn);
-        }
-
-        private HttpContextImpl getContext() {
-            if (connect() == null || connect().isAcceptable()) {
-                return null;
-            }
-            HttpContextImpl context = (HttpContextImpl) attachment();
-
-            if (context == null || context.disposed || !this.connect().isConnected()) {
-                return null;
-            }
-            return context;
-        }
-
-        @Override
-        protected void onRead() {
-            HttpContextImpl context = getContext();
-            if (context == null) {
-                this.onClosed();
-                return;
-            }
-
-            if (this.operation() == Task.OP_BUFFER) {
-                this.buffer().flip();
-                context.buffer.write(this.buffer());
-                if (!this.buffer().hasRemaining()) {
-                    service.ioBufferPool().put(this.buffer());
-                } else {
-                    context.readBuffer = this.buffer();
-                }
-                context.buffer.flush();
-            }
-            context.run();
-        }
-
-        @Override
-        protected void onWriten() {
-            HttpContextImpl context = getContext();
-            if (context == null) {
-                this.onClosed();
-            } else {
-                connect().flush();
-            }
-        }
-
-        @Override
-        protected void onFailed() {
-            if (connect().isAcceptable()) {
-                return;
-            }
-            Throwable cause = error();
-            HttpContextImpl context = getContext();
-            if (context == null) {
-                this.onClosed();
-            } else if (cause != null && ((cause instanceof InterruptedByTimeoutException) || (cause.getMessage() + "").indexOf("connection was aborted") > 0)) {
-                System.out.println("onFailed 2:" + cause.getMessage());
-                this.onClosed();
-            } else {
-                context.onError(cause);
-            }
-        }
-
-        @Override
-        protected void onClosed() {
-
-            System.out.println("closed conn");
-            try {
-                connect().close(true, null);//两次确认并关闭对象
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            HttpContextImpl context = getContext();
-            if (context != null) {
-                context.dispose();
-            }
-        }
-
-        @Override
-        protected void onFlush() {
-            HttpContextImpl context = getContext();
-            if (context == null) {
-                this.onClosed();
-            } else {
-                if (connect().hasWriteTaskQueued()) {
-                    connect().flush();
-                } else if (context.closedFlag.get()) {
-                    //System.out.println("call complete:");
-                    context.complete();
-                }
-            }
-        }
-    }
-
 }

@@ -11,36 +11,44 @@ import mano.web.HttpSession;
 import mano.web.WebApplication;
 
 /**
- *
+ * 封装有关个别 HTTP 请求的所有 HTTP 特定的信息。
  * @author jun <jun@diosay.com>
  */
-public abstract class HttpContext {
-    /*private HttpModule _handler;
-    private WebApplication _application;
-    public HttpModule handler(){
-        return _handler;
-    }
+public interface HttpContext {
     
-    public void handler(HttpModule handler){
-        _handler=handler;
-    }
+    /**
+     * 获取当前 HTTP 请求所关联的 WebApplication 对象。
+     * @return 
+     */
+    WebApplication getApplication();
     
-    public void setApplication(WebApplication application){
-        _application=application;
-    }
-    */
-    public abstract WebApplication getApplication();
+    /**
+     * 获取一个值，以指示当前 HTTP 请求是否处理完成。
+     * @return 
+     */
+    boolean isCompleted();
     
-    
-    public abstract boolean isCompleted();
-    
-    //public abstract boolean complete();
-    
-    public abstract HttpRequest getRequest();
+    /**
+     * 获取当前 HTTP 请求所关联的 HttpRequest 对象。
+     * @return 
+     */
+    HttpRequest getRequest();
 
-    public abstract HttpResponse getResponse();
+    /**
+     * 获取当前 HTTP 请求所关联的 HttpResponse 对象。
+     * @return 
+     */
+    HttpResponse getResponse();
     
-    public abstract HttpServer getServer();
+    /**
+     * 获取当前 HTTP 请求所关联的 HttpServer 对象。
+     * @return 
+     */
+    HttpServer getServer();
     
-    public abstract HttpSession getSession();
+    /**
+     * 获取当前 HTTP 请求所关联的 HttpSession 对象。
+     * @return 
+     */
+    HttpSession getSession();
 }

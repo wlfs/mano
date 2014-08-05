@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import mano.Resettable;
 import mano.util.logging.Logger;
 
 /**
@@ -18,7 +19,7 @@ import mano.util.logging.Logger;
  *
  * @author jun <jun@diosay.com>
  */
-public class Buffer {
+public class Buffer implements Resettable {
 
     public final byte[] array;
     public final int offset;
@@ -148,10 +149,10 @@ public class Buffer {
      *
      * @return
      */
-    public synchronized Buffer reset() {
+    @Override
+    public synchronized void reset() {
         this.pos = 0;
         this.len = this.capacity;
-        return this;
     }
 
     /**

@@ -25,7 +25,7 @@ import mano.web.HttpSession;
 final class HttpResponseImpl extends HttpResponse {
 
     HttpHeaderCollection headers;
-    HttpContextImpl _context;
+    HttpConnection connection;
     int _bufferSize = 1024;
     boolean _headerSent = false;
     boolean _chunked = false;
@@ -33,8 +33,8 @@ final class HttpResponseImpl extends HttpResponse {
     long _contentLength = 0;
     String CRLF = "\r\n";
 
-    HttpResponseImpl(HttpContextImpl context) {
-        this._context = context;
+    HttpResponseImpl(HttpConnection conn) {
+        this.connection = conn;
         this.headers = new HttpHeaderCollection();
         _buffer = ByteBuffer.allocate(_bufferSize);
     }
@@ -75,8 +75,9 @@ final class HttpResponseImpl extends HttpResponse {
             sb.append(String.format("%s %s %s%s", "HTTP/1.1", this.status(), this.statusDescription(), CRLF));
 
             if (!headers.containsKey("Date")) {
-                this.setHeader("Date", DateTime.now().toString(DateTime.FORMAT_GMT));
+                this.setHeader("Date", DateTime.now().toGMTString());
             }
+
             if (!headers.containsKey("Connection")) {
                 this.setHeader("Connection", "keep-alive");
             }
@@ -85,19 +86,26 @@ final class HttpResponseImpl extends HttpResponse {
                 this.setHeader("Content-Type", "text/html;charset=utf-8");
             }
 
-            if (!this._chunked && this._endFlush) {
+            if (!this._chunked || this._endFlush) {
                 this.setHeader("Content-Length", this._contentLength + "");
             } else {
                 this.setHeader("Transfer-Encoding", "chunked");
             }
+            
+            if (connection.context != null) {
+                if (connection.context.session != null && connection.context.session.isNewSession()) {
+                    this.getCookie().set(HttpSession.COOKIE_KEY, connection.context.session.getSessionId(), 0, null, null, true, false);
+                }
+                this.setHeader("Server", connection.context.getServer().getVersion());
+                this.setHeader("X-Powered-By", "mano/1.1,java/1.8");
+            }
+            
 
             for (Entry<String, HttpHeader> entry : headers.entrySet()) {
                 sb.append(String.format("%s%s", entry.getValue().toString(), CRLF));
             }
 
-            if (_context.session != null && _context.session.isNewSession()) {
-                this.getCookie().set(HttpSession.COOKIE_KEY, _context.session.getSessionId(), 0, null, null, true, false);
-            }
+            
 
             for (CookieEntry entry : this.getCookie().iterator()) {
                 sb.append(String.format("%s%s%s", "Set-Cookie:", entry.toString(), CRLF));
@@ -107,7 +115,7 @@ final class HttpResponseImpl extends HttpResponse {
             ByteBuffer buffer = ByteBuffer.wrap(sb.toString().getBytes(this.charset()));
 
             //buffer.flip();
-            _context.write(buffer);
+            connection.write(buffer);
             _headerSent = true;
         }
     }
@@ -116,8 +124,9 @@ final class HttpResponseImpl extends HttpResponse {
 
     @Override
     public synchronized void write(byte[] buf, int offset, int count) {
+
         if (_buffer == null) {
-            _buffer = _context.service.ioBufferPool().get();
+            _buffer = connection.getBuffer();
             _buffer.clear();
         }
         int size = Math.min(_buffer.remaining(), count);
@@ -127,7 +136,9 @@ final class HttpResponseImpl extends HttpResponse {
         } else {
 
             _buffer.put(buf, offset, size);
-
+            /*if(!buffering()){
+               
+             }*/
             _contentLength += size;
             if (count > size) {
                 this.flush();
@@ -151,19 +162,24 @@ final class HttpResponseImpl extends HttpResponse {
     private synchronized void transmit(FileChannel chan, long position, long length) throws IOException {
         this.flush();
 
-        if (!this._chunked || this._endFlush) {
+        if (this._endFlush) {
             throw new IOException("错误的传输方式");
+        } else if (this._chunked) {// || this._endFlush
+            connection.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(length), CRLF).getBytes(this.charset())));
+            connection.transferFile(chan, position, length);
+            connection.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
+
+        } else {
+            connection.transferFile(chan, position, length);
         }
 
-        _context.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(length), CRLF).getBytes(this.charset())));
-        _context.write(_context.service.newTask().channel(chan, position, length).attach(_context));
-        _context.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
     }
+    private boolean auto = true;
 
     @Override
     public synchronized void flush() {
         if (!this._headerSent) {
-            if (!this._endFlush) {
+            if (!this._endFlush && auto) {
                 this._chunked = true;
             }
 
@@ -187,18 +203,18 @@ final class HttpResponseImpl extends HttpResponse {
 
         if (_chunked) {
             if (len > 0) {
-                _context.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(len), CRLF).getBytes(this.charset())));
-                _context.write(_buffer);
+                connection.write(ByteBuffer.wrap(String.format("%s %s", Long.toHexString(len), CRLF).getBytes(this.charset())));
+                connection.write(_buffer);
                 _buffer = null;
-                _context.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
+                connection.write(ByteBuffer.wrap(String.format("%s", CRLF).getBytes(this.charset())));
                 len = 0;
             }
 
             if (_endFlush && len <= 0) {
-                _context.write(ByteBuffer.wrap(String.format("0%s%s", CRLF, CRLF).getBytes(this.charset())));//没有尾部
+                connection.write(ByteBuffer.wrap(String.format("0%s%s", CRLF, CRLF).getBytes(this.charset())));//没有尾部
             }
         } else if (len > 0) {
-            _context.write(_buffer);
+            connection.write(_buffer);
             _buffer = null;
         }
         _contentLength -= len;
@@ -206,11 +222,9 @@ final class HttpResponseImpl extends HttpResponse {
 
     @Override
     public synchronized void end() {
-        //System.out.println("call end:");
         this._endFlush = true;
         this.flush();
-        this._context.end();
-
+        this.connection.end();
     }
 
     @Override
@@ -221,6 +235,16 @@ final class HttpResponseImpl extends HttpResponse {
     @Override
     public boolean isConnected() {
         return true;// TODO
+    }
+
+    @Override
+    public void setContentLength(long length) throws InvalidOperationException {
+        if (this.headerSent()) {
+            throw new InvalidOperationException("HTTP Header has been sent.");
+        }
+        auto = false;
+        this._chunked = false;
+        _contentLength = length;
     }
 
 }

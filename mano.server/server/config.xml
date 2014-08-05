@@ -94,8 +94,13 @@
                         <!--http://www.w3school.com.cn/media/media_mimeref.asp-->
                         <param name="ext:html">text/html</param>
                         <param name="ext:htm">text/html</param>
+                        <param name="ext:text">text/plain</param>
+                        <param name="ext:css">text/css</param>
+                        <param name="ext:js">application/x-javascript</param>
                         <param name="ext:jpg">image/jpeg</param>
-                        
+                        <param name="ext:png">image/png</param>
+                        <param name="ext:mp4">video/mp4</param>
+                        <param name="ext:rar">application/octet-stream</param>
                         <param name="fcgi:server1:pass">192.168.1.10:9000</param>
                         <param name="fcgi:server1:weight">1</param>
                     </params>
@@ -110,7 +115,7 @@
         
         <web.applications>
             <!--<include path="xxx/web.xml"/>-->
-            <app:application name="default application" host="*:9999" rootdir="~/wwwroot" vpath="/user" class="mano.web.WebApplication">
+            <app:application name="default application" host="*:9999" rootdir="~/wwwroot" vpath="/" class="mano.web.WebApplication">
                 <dependency>
                     <path value="~/bin/ext/drivers"/>
                     <path value="~/bin/ext/hibernate-release-4.3.5.Final/required"/>

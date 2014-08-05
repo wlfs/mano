@@ -7,8 +7,14 @@
  */
 package mano.util;
 
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import mano.Resettable;
 
 /**
  *
@@ -19,7 +25,7 @@ public class Pool<T> {
 
     private final Queue<T> items = new LinkedBlockingQueue<>();
     private ObjectFactory<T> _factory;
-    
+    private int count;
     public Pool(){}
     
     public Pool(ObjectFactory<T> factory){
@@ -37,6 +43,8 @@ public class Pool<T> {
         T result = items.poll();
         if (result == null) {
             result = create();
+        }else{
+            count--;
         }
         return result;
     }
@@ -45,10 +53,40 @@ public class Pool<T> {
         if (item == null) {
             return;
         }
+        count++;
+        if(item instanceof Resettable){
+            ((Resettable)item).reset();
+        }
         items.offer(item);
+    }
+    
+    public int count(){
+        return count;
     }
 
     public synchronized void clear() {
+        count=0;
         items.clear();
     }
+    
+    
+    public static void main(String...args){
+        ReferenceQueue rq=new ReferenceQueue();
+        PhantomReference wr=new PhantomReference("abc",rq);
+        System.gc();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+            
+        }
+        System.gc();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+            
+        }System.gc();
+        System.out.println(wr.get());
+        System.out.println(rq.poll());
+    } 
+    
 }

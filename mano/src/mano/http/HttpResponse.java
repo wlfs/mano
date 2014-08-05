@@ -12,7 +12,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
-import mano.util.logging.Logger;
 
 /**
  * API 参考：
@@ -20,7 +19,6 @@ import mano.util.logging.Logger;
  * http://msdn.microsoft.com/zh-cn/library/system.web.httpworkerrequest(v=vs.110).aspx
  * http://docs.oracle.com/javaee/7/api/javax/servlet/ServletResponse.html
  */
-
 /**
  * 封装来自处理程序操作的 HTTP 响应信息。
  *
@@ -69,6 +67,18 @@ public abstract class HttpResponse {
         }
         this._status = code;
         this._statusDesc = desc;
+    }
+    
+    private boolean buffering = true;
+    public boolean buffering() {
+        return buffering;
+    }
+
+    public void buffering(boolean b) throws InvalidOperationException {
+        if (buffering != b && this.headerSent()) {
+            throw new InvalidOperationException("HTTP Header has been sent.");
+        }
+        buffering = b;
     }
 
     /**
@@ -120,6 +130,12 @@ public abstract class HttpResponse {
         header.attr("charset", value);
         this.setHeader(header);
     }
+    
+    /**
+     * 显示的设置当前的 HTTP 响应标头发送到客户端内容的长度。
+     * <p>注意：调用该方法后将不会再使用 chunk 编码发送数据，所以该值必须是精准的。
+     */
+    public abstract void setContentLength(long length) throws InvalidOperationException;
 
     /**
      * 获取一个值，指示是否已为当前的请求将 HTTP 响应标头发送到客户端。

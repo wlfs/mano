@@ -25,6 +25,7 @@ import mano.util.logging.Logger;
  *
  * @author jun <jun@diosay.com>
  */
+@Deprecated
 public final class Activator {
 
     private volatile ClassLoader current;
@@ -243,25 +244,5 @@ public final class Activator {
         private Map<String, String> exports;
     }
 
-    public static void main(String... args) {
-
-        ContextClassLoader scl=new ContextClassLoader(null);
-        scl.register("E:\\repositories\\java\\mano\\mano.server\\server\\bin\\ext\\hibernate-release-4.3.5.Final\\required");
-        
-        try {
-            System.out.println(scl.loadClass("org.hibernate.SessionFactory"));
-        } catch (ClassNotFoundException ex) {
-            scl.getLogger().error(null, ex);
-        }
-        
-        
-        Version ver=new Version(1000000,0,0,3);
-        
-        
-        
-        System.out.println("ver num:"+ver.value);
-        System.out.println("ver:"+ver);
-        
-    }
 
 }

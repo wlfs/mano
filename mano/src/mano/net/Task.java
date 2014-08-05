@@ -26,6 +26,7 @@ import mano.util.ThreadPool;
  * @author jun <jun@diosay.com>
  *
  */
+@Deprecated
 public abstract class Task implements Resettable, Disposable, Callable<Integer> {
 
     public final static int EVENT_ACCEPTED = 1;

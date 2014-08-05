@@ -19,20 +19,17 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import mano.http.HttpContext;
 import mano.http.HttpModule;
 import mano.util.Utility;
-import mano.util.logging.Logger;
 
 /**
  *
@@ -361,7 +358,9 @@ public class UrlRouteModule implements HttpModule {
     
     @Override
     public void dispose() {
-        //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        viewEngine=null;
+        app=null;
+        RouteTable.clear();
     }
     
 }

@@ -31,12 +31,13 @@ import mano.util.ThreadPool;
  *
  * @author jun <jun@diosay.com>
  */
+@Deprecated
 public class AioConnection extends Connection {
 
     private static final int MODE_SERVER = 1, MODE_CONNECTOR = 2;
 
     AsynchronousServerSocketChannel _server;
-    AsynchronousSocketChannel _client;
+    public AsynchronousSocketChannel _client;
     Pool<AcceptedHandler> acceptFactory;
     Pool<ReceivedHandler> readFactory;
     Pool<SentHandler> writeFactory;

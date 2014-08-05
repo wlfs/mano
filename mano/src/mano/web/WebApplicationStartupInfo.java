@@ -44,7 +44,7 @@ public class WebApplicationStartupInfo {
     public NameValueCollection<String> settings = new NameValueCollection<>();
     public ArrayList<String> ignoreds = new ArrayList<>();
     public String serverPath;
-    private WebApplication app;
+    public WebApplication app;
     private HttpServer server;
     public String version = "ManoServer/1.1";
     private Pattern hostreg;
