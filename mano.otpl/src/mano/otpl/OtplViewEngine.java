@@ -37,12 +37,12 @@ public class OtplViewEngine extends ViewEngine {
     Logger logger=Logger.getDefault();//TODO:
     @Override
     public String compile(String tempdir, String tplName) {
-        try {
+        /*try {
             parser.open(tplName);
         } catch (FileNotFoundException ex) {
             logger.error(null, ex);
             
-        }
+        }*/
 
         try {
             parser.parse();
@@ -93,6 +93,7 @@ public class OtplViewEngine extends ViewEngine {
 
             if (true) {
                 target_file.createNewFile();
+                
                 parser.compile(source, target_file.toString());
             }
             for (Map.Entry<String, Object> entry : service.getEntries()) {

@@ -8,7 +8,7 @@
 package mano.otpl;
 
 /**
- *
+ * 表示一个元素节点。
  * @author jun <jun@diosay.com>
  */
 public abstract class Node {

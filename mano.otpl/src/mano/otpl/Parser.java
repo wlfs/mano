@@ -39,9 +39,9 @@ public abstract class Parser {
         return line;
     }
 
-    public void open(String file) throws FileNotFoundException {
+    public void open(String file) throws FileNotFoundException,IOException {
         java.io.FileInputStream fs = new java.io.FileInputStream(file);
-        reader = new java.io.BufferedReader(new java.io.InputStreamReader(fs));
+        reader = new java.io.BufferedReader(new java.io.InputStreamReader(fs,"utf-8"));
         filename = file;
     }
 

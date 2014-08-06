@@ -57,7 +57,7 @@ public class Program implements ServiceContainer, ServiceProvider {
     String bootstrapPath;
     
     private void init() throws FileNotFoundException {
-        bootstrapPath = Utility.combinePath(System.getProperty("user.dir"), "server").toString();//
+        bootstrapPath = Utility.combinePath(System.getProperty("user.dir"), "server").toString();//, "server"
         loader = new ContextClassLoader(new Logger(new CansoleLogProvider()));
         loader.register(Utility.combinePath(bootstrapPath, "bin").toString());
         loader.register(Utility.combinePath(bootstrapPath, "bin/lib").toString());

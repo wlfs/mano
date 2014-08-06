@@ -7,13 +7,11 @@
  */
 package mano.otpl;
 
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
-import java.util.Set;
 
 /**
- *
+ * 表示一个块元素
  * @author jun <jun@diosay.com>
  */
 public class Block extends Node {

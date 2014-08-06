@@ -38,12 +38,12 @@ public class PyViewEngine extends ViewEngine {
 
     @Override
     public String compile(String tempdir, String tplName) {
-        try {
+        /*try {
             paraser.open("E:\\repositories\\java\\mano\\mano.server\\server\\wwwroot\\views\\tpl\\member.tpl.html");
         } catch (FileNotFoundException ex) {
             Logger.getLogger(PyParaser.class.getName()).log(Level.SEVERE, null, ex);
             return null;
-        }
+        }*/
         try {
             paraser.parse();
             File f = new File("E:\\repositories\\java\\mano\\mano.server\\server\\tmp\\" + Integer.toHexString(tplName.hashCode()) + ".py");

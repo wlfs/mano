@@ -11,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -55,29 +56,6 @@ public class Interpreter {
     static final String FLASE = "[!--SYS-TYPE--$false]";
     static final String NULL = "[!--SYS-TYPE--$null]";
     OtplViewEngine.OutProxy environment;
-
-    /*public static void main(String[] args) {
-        EmitParser.mains(args);
-        Interpreter interpreter = new Interpreter();
-        try {
-            interpreter.init(null);
-            interpreter.setOut(System.out);
-            interpreter.exec("E:\\repositories\\java\\mano\\mano.server\\server\\tmp\\4c0dbce1.il");
-        } catch (IOException ex) {
-            Logger.getLogger(Interpreter.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-     public String field = "i am is a field";
-     public String oprop = "i am is a auto property";
-
-     public String getProp() {
-     return "i am is a property(getProp())";
-     }
-
-     public int addTest(int a, int b) {
-     return a + b;
-     }*/
 
     public void set(String name, Object val) {
         //args.put(name, val);
@@ -134,7 +112,7 @@ public class Interpreter {
         if (buf[9] == 1) {
             charsetName = "utf-8";
         } else {
-            charsetName = "unkonw";
+            charsetName = "utf-8";//default
         }
         sourceLastMTime = Utility.toLong(buf, 10);
         ilCTime = Utility.toLong(buf, 18);
@@ -463,7 +441,11 @@ public class Interpreter {
     }
 
     private void print(Object obj) {
-        printStr(obj.toString().getBytes());
+        try {
+            printStr(obj.toString().getBytes(charsetName));
+        } catch (UnsupportedEncodingException ex) {
+            throw new java.lang.RuntimeException(ex);
+        }
     }
 
     private void printStr(byte[] bytes) {

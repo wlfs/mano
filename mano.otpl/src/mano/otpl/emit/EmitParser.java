@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -789,12 +790,14 @@ public class EmitParser extends Parser {
 
     public void compile(String source, String target) throws IOException {
         java.io.FileInputStream in = new java.io.FileInputStream(source);
-        reader = new java.io.BufferedReader(new java.io.InputStreamReader(in));
+        reader = new java.io.BufferedReader(new java.io.InputStreamReader(in,"utf-8"));
         filename = source;
         this.parse();
         in.close();
 
         java.io.FileOutputStream out = new java.io.FileOutputStream(target);
+        java.io.Writer writer=new java.io.OutputStreamWriter(out);
+        
         this.compile(out);
         out.close();
     }
@@ -815,7 +818,7 @@ public class EmitParser extends Parser {
             this.compile(code, output);
         }
     }
-
+    Charset charset=Charset.forName("utf-8");
     private void compile(OpCode code, OutputStream output) throws IOException {
         if (code instanceof Tuple) {
             for (OpCode sub : (Tuple) code) {
@@ -835,9 +838,10 @@ public class EmitParser extends Parser {
         } else if (OpCodes.JUMP.equals(code.getCode()) || OpCodes.JUMP_FLASE.equals(code.getCode()) || OpCodes.JUMP_TRUE.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getElement(0).getAddress()));
         } else if (OpCodes.DOM.equals(code.getCode())) {
-            output.write("OTPL-IL".getBytes());//id7
+            output.write("OTPL-IL".getBytes(charset));//id7
             output.write(Utility.toBytes((short) 11));//ver
             output.write(0x1);//utf-8
+            
             output.write(Utility.toBytes(0L));//file mod time8
             output.write(Utility.toBytes(0L));//gen time8
         } else if (OpCodes.END_BLOCK.equals(code.getCode())) {
@@ -849,22 +853,22 @@ public class EmitParser extends Parser {
         } else if (OpCodes.LOAD_NUMBER.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getNumber()));
         } else if (OpCodes.LOAD_VAR.equals(code.getCode())) {
-            byte[] bytes = code.getString().getBytes();
+            byte[] bytes = code.getString().getBytes(charset);
             output.write(Utility.toBytes(bytes.length));
             output.write(bytes);
         } else if (OpCodes.LOAD_INTEGER.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getLong()));//
         } else if (OpCodes.LOAD_PROPERTY.equals(code.getCode())) {
-            byte[] bytes = code.getString().getBytes();
+            byte[] bytes = code.getString().getBytes(charset);
             output.write(Utility.toBytes(bytes.length));
             output.write(bytes);
         } else if (OpCodes.LOAD_METHOD.equals(code.getCode())) {
             output.write(Utility.toBytes(code.getInt()));
-            byte[] bytes = code.getString().getBytes();
+            byte[] bytes = code.getString().getBytes(charset);
             output.write(Utility.toBytes(bytes.length));
             output.write(bytes);
         } else if (OpCodes.LOAD_STR.equals(code.getCode())) {
-            byte[] bytes = code.getString().getBytes();
+            byte[] bytes = code.getString().getBytes(charset);
             output.write(Utility.toBytes(bytes.length));
             output.write(bytes);
         } else if (OpCodes.CALL.equals(code.getCode())) {
@@ -887,11 +891,11 @@ public class EmitParser extends Parser {
         } else if (OpCodes.OP_SUB.equals(code.getCode())) {
         } else if (OpCodes.PRINT.equals(code.getCode())) {
         } else if (OpCodes.PRINT_STR.equals(code.getCode())) {
-            byte[] bytes = code.getString().getBytes();
+            byte[] bytes = code.getString().getBytes(charset);
             output.write(Utility.toBytes(bytes.length));
             output.write(bytes);
         } else if (OpCodes.SET_VAR.equals(code.getCode())) {
-            byte[] bytes = code.getString().getBytes();
+            byte[] bytes = code.getString().getBytes(charset);
             output.write(Utility.toBytes(bytes.length));
             output.write(bytes);
         } else {
