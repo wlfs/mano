@@ -10,31 +10,14 @@
 
 # open-tpl compiled files
 *.otc
+*.otpl
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 /license.txt
-/libs/
-/data/tmp/
-/mana/nbproject/private/
-/mana/build/
-/mana/dist/
-/mano.wrt/nbproject/private/
-/mano.wrt/build/
-/mano.wrt/dist/
-/mano.server/nbproject/private/
-/mano.server/build/
-/mano.server/dist/
-/mano.otpl/nbproject/private/
-/mano.otpl/build/
-/mano.otpl/dist/
-/testapp/nbproject/private/
-/testapp/build/
-/testapp/dist/
-/mano.libprovides/nbproject/private/
-/mano.libprovides/build/
-/mano.libprovides/dist/
-/module1/nbproject/private/
-/testapp.model/nbproject/private/
-/testapp.model/dist/
-/testapp.model/build/
+/mano/target/
+/mano-web/target/
+/otpl4j/target/
+/mano-server/target/
+/maven-manoserver-plugin/target/
+/test-webapp/target/
