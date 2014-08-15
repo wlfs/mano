@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+        <action>
+            <actionName>CUSTOM-manoserver:deploy</actionName>
+            <displayName>manoserver:deploy</displayName>
+            <goals>
+                <goal>manoserver:deploy</goal>
+            </goals>
+        </action>
+        <action>
+            <actionName>CUSTOM-manoserver:run</actionName>
+            <displayName>manoserver:run</displayName>
+            <goals>
+                <goal>manoserver:run</goal>
+            </goals>
+        </action>
+    </actions>
