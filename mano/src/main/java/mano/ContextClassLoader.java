@@ -63,7 +63,7 @@ public class ContextClassLoader extends URLClassLoader {
             if (!file.exists()) {
                 try {
                     set.add(new URI(path).toURL());
-                } catch (URISyntaxException | MalformedURLException ex) {
+                } catch (Exception ex) {
                     logger.warn("[ContextClassLoader.register]Invalid path(URL ERROR 1) :%s", path);
                 }
                 continue;
@@ -76,7 +76,7 @@ public class ContextClassLoader extends URLClassLoader {
                 }
                 try {
                     set.add(file.toURI().toURL());
-                } catch (MalformedURLException ex) {
+                } catch (Exception ex) {
                     logger.warn("[ContextClassLoader.register]Invalid path(URL ERROR 2)", ex);
                 }
             } else {
@@ -85,7 +85,7 @@ public class ContextClassLoader extends URLClassLoader {
                     if (f.isFile() && (fname.endsWith("jar") || fname.endsWith(".class"))) {
                         try {
                             set.add(f.toURI().toURL());
-                        } catch (MalformedURLException ex) {
+                        } catch (Exception ex) {
                             logger.warn("[ContextClassLoader.register]Invalid path(URL ERROR 3)", ex);
                         }
                     }

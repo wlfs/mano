@@ -435,7 +435,7 @@ public class Interpreter {
 
     private void print(Object obj) {
         if(obj==null){
-            obj="NULL";
+            return;
         }
         try {
             printStr(obj.toString().getBytes(charsetName));

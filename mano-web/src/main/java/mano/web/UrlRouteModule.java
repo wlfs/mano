@@ -82,7 +82,7 @@ public class UrlRouteModule implements HttpModule {
             try {
                 jar = ((JarURLConnection) url.openConnection()).getJarFile();
             } catch (IOException ex) {
-                app.getLogger().debug(null, ex);
+                app.getLogger().debug("URL:"+url.toString(), ex);
                 return;
             }
             Enumeration<JarEntry> entries = jar.entries();
@@ -112,7 +112,7 @@ public class UrlRouteModule implements HttpModule {
                 return;
             } else if (dir.isFile() && dir.getName().toLowerCase().endsWith(".jar")) {
                 try {
-                    scanJar(new URL("jar:file:/" + dir.toString() + "!/"), dir.getName().substring(0, dir.getName().length() - 4));
+                    scanJar(new URL("jar:file://" + dir.toString() + "!/"), dir.getName().substring(0, dir.getName().length() - 4));
                 } catch (MalformedURLException ex) {
                     app.getLogger().debug(null, ex);
                 }
