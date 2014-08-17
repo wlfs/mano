@@ -29,6 +29,13 @@ public abstract class HttpResponse {
     private int _status = 200;
     private String _statusDesc = "OK";
     private Charset _charset = Charset.forName("utf-8");
+    private boolean buffering = true;
+    private HttpCookieCollection cookie = new HttpCookieCollection();
+    protected void checkAndThrowHeaderSent() {
+        if (this.headerSent()) {
+            throw new InvalidOperationException("HTTP Header has been sent.");
+        }
+    }
 
     /**
      * 获取返回给客户端的输出的 HTTP 状态代码。
@@ -62,22 +69,28 @@ public abstract class HttpResponse {
      * @throws ark.InvalidOperationException
      */
     public void status(int code, String desc) throws InvalidOperationException {
-        if (this.headerSent()) {
-            throw new InvalidOperationException("HTTP Header has been sent.");
-        }
+        checkAndThrowHeaderSent();
         this._status = code;
         this._statusDesc = desc;
     }
-    
-    private boolean buffering = true;
+
+    /**
+     * 获取一个值，该值指示是否缓冲输出，并在缓冲区满之后将其发送。
+     *
+     * @return
+     */
     public boolean buffering() {
         return buffering;
     }
 
+    /**
+     * 设置一个值，该值指示是否缓冲输出，并在缓冲区满之后将其发送。
+     *
+     * @param b
+     * @throws InvalidOperationException HTTP 响应头已发送。
+     */
     public void buffering(boolean b) throws InvalidOperationException {
-        if (buffering != b && this.headerSent()) {
-            throw new InvalidOperationException("HTTP Header has been sent.");
-        }
+        checkAndThrowHeaderSent();
         buffering = b;
     }
 
@@ -120,7 +133,6 @@ public abstract class HttpResponse {
      * @throws ark.InvalidOperationException
      */
     public void charset(String value) throws UnsupportedCharsetException, InvalidOperationException {
-        this._charset = Charset.forName(value);
         HttpHeader header;
         if (this.headers().containsKey("Content-Type")) {
             header = new HttpHeader("Content-Type", this.headers().get("Content-Type").text());
@@ -129,11 +141,13 @@ public abstract class HttpResponse {
         }
         header.attr("charset", value);
         this.setHeader(header);
+        this._charset = Charset.forName(value);
     }
-    
+
     /**
      * 显示的设置当前的 HTTP 响应标头发送到客户端内容的长度。
-     * <p>注意：调用该方法后将不会再使用 chunk 编码发送数据，所以该值必须是精准的。
+     * <p>
+     * 注意：调用该方法后将不会再使用 chunk 编码发送数据，所以该值必须是精准的。
      */
     public abstract void setContentLength(long length) throws InvalidOperationException;
 
@@ -189,10 +203,28 @@ public abstract class HttpResponse {
             this.end();
         }
     }
-    private HttpCookieCollection cookie = new HttpCookieCollection();
+    
 
+    /**
+     * 获取响应 Cookie 集合。
+     *
+     * @return
+     */
     public HttpResponseCookie getCookie() {
         return cookie;
+    }
+
+    /**
+     * 将一个对象转换为字符串并写入 HTTP 响应输出流。
+     *
+     * @param format
+     * @param args
+     */
+    public void write(Object obj) {
+        if (obj != null) {
+            byte[] array = obj.toString().getBytes(_charset);
+            this.write(array, 0, array.length);
+        }
     }
 
     /**
@@ -202,9 +234,7 @@ public abstract class HttpResponse {
      * @param args
      */
     public void write(String format, Object... args) {
-
-        byte[] array = ((args == null || args.length == 0) ? format.toString() : String.format(format, args)).getBytes(_charset);//Charset.forName("gbk")_charset
-        this.write(array, 0, array.length);
+        write((args == null || args.length == 0) ? format : String.format(format, args));
     }
 
     /**
@@ -240,7 +270,7 @@ public abstract class HttpResponse {
     public abstract void flush();
 
     /**
-     * 将当前所有缓冲的输出发送到客户端，停止该页的执行，并引发 EndRequest 事件。
+     * 将当前所有缓冲的输出发送到客户端，并结束本次响应。
      */
     public abstract void end();
 }

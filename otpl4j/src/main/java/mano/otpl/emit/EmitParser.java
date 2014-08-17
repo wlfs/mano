@@ -88,6 +88,7 @@ public class EmitParser extends Parser {
 
             if (parent.reader != null) {
                 parent.reader.close();
+                parent.reader=null;
             }
 
             //setparent
@@ -789,17 +790,29 @@ public class EmitParser extends Parser {
     }
 
     public void compile(String source, String target) throws IOException {
-        java.io.FileInputStream in = new java.io.FileInputStream(source);
-        reader = new java.io.BufferedReader(new java.io.InputStreamReader(in,"utf-8"));
-        filename = source;
-        this.parse();
-        in.close();
+        this.addr=0;
+        this.canSwap=false;
+        this.cnode=null;
+        this.codes.clear();
+        this.conentDom=null;
+        this.dom=null;
+        this.filename=null;
+        this.inComment=false;
+        this.inLiteral=false;
+        this.parent=null;
+        this.reader=null;
+        try (java.io.FileInputStream in = new java.io.FileInputStream(source)) {
+            reader = new java.io.BufferedReader(new java.io.InputStreamReader(in,"utf-8"));
+            filename = source;
+            this.parse();
+            reader.close();
+            reader=null;
+        }
 
-        java.io.FileOutputStream out = new java.io.FileOutputStream(target);
-        java.io.Writer writer=new java.io.OutputStreamWriter(out);
-        
-        this.compile(out);
-        out.close();
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(target)) {            
+            this.compile(out);
+            out.close();
+        }
     }
 
     public void compile(OutputStream output) throws IOException {

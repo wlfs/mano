@@ -7,27 +7,17 @@ package mano.otpl.emit;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.lang.ref.SoftReference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.Stack;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import mano.otpl.OtplViewEngine;
 import mano.util.LinkedMap;
 import mano.util.LinkedMap.LinkedNode;
@@ -35,6 +25,7 @@ import mano.util.Utility;
 
 /**
  * 实现 Open-TPL 编译文件(OTC)的解释器。
+ *
  * @see https://github.com/diosay/open-tpl
  * @author jun <jun@diosay.com>
  */
@@ -93,8 +84,10 @@ public class Interpreter {
                 exec(current.getNext());
             }
         }
-        current=null;
-        running=true;
+        current = null;
+        running = true;
+        stream.close();
+        stream = null;
         //LinkedList<int> f;
     }
 
@@ -441,6 +434,9 @@ public class Interpreter {
     }
 
     private void print(Object obj) {
+        if(obj==null){
+            obj="NULL";
+        }
         try {
             printStr(obj.toString().getBytes(charsetName));
         } catch (UnsupportedEncodingException ex) {

@@ -274,10 +274,10 @@ class HttpConnection {
                     throw new HttpException(HttpStatus.BadRequest, "Bad Request Line");
                 }
                 //System.out.println(line);
-                HttpRequestImpl request = new HttpRequestImpl(connection);
-                request._method = arr[0].trim();
-                request._rawUrl = arr[1].trim();
-                request._version = arr[2].trim();
+                HttpRequestImpl request = new HttpRequestImpl(null);
+                request.method = arr[0].trim();
+                request.rawUrl = arr[1].trim();
+                request.version = arr[2].trim();
                 connection.request = request;
                 ResolveRequestHeadersHandler next = new ResolveRequestHeadersHandler();
                 next.connection = connection;
@@ -307,7 +307,7 @@ class HttpConnection {
                     connection.request.hasPostData(); //提前确定POST数据，发现错误
                     //connection.close0();
 
-                    if (!connection.service.createContext(connection.request)) {
+                    if (!connection.service.processRequest(connection.request)) {
                         connection.failed(new HttpException(HttpStatus.BadRequest, "Bad Request(Invalid Hostname)"), this);
                         return null;
                     } else {
@@ -326,7 +326,7 @@ class HttpConnection {
                 if (header == null) {
                     throw new HttpException(HttpStatus.BadRequest, "Bad Request");
                 }
-                connection.request._headers.put(header);
+                connection.request.headers.put(header);
             }
             return this;
         }

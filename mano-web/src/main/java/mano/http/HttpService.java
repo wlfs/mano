@@ -10,7 +10,9 @@ package mano.http;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousServerSocketChannel;
@@ -20,7 +22,9 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import mano.ContextClassLoader;
+import mano.DateTime;
 import mano.caching.CacheProvider;
 import mano.http.HttpConnection.FlushHandler;
 import mano.http.HttpConnection.ReceivedCompletionHandler;
@@ -30,6 +34,10 @@ import mano.http.HttpConnection.SentCompletionHandler;
 import mano.http.HttpRequestImpl.LoadExactDataHandler;
 import mano.io.BufferPool;
 import mano.io.ByteBufferPool;
+import mano.net.Buffer;
+import mano.net.ByteArrayBuffer;
+import mano.net.Channel;
+import mano.net.ChannelHandler;
 import mano.service.Service;
 import mano.service.ServiceContainer;
 import mano.service.ServiceProvider;
@@ -242,26 +250,26 @@ public class HttpService extends Service implements ServiceProvider {
         }
 
         /*NodeList nodes = helper.selectNodes(root, "web.applications/application");
-        for (int i = 0; i < nodes.getLength(); i++) {
-            node = nodes.item(i);
-            WebApplicationStartupInfo info = new WebApplicationStartupInfo();
+         for (int i = 0; i < nodes.getLength(); i++) {
+         node = nodes.item(i);
+         WebApplicationStartupInfo info = new WebApplicationStartupInfo();
 
-            info.service = this;
-            info.modules.putAll(machine.modules);
-            info.settings.putAll(machine.settings);
-            info.exports.putAll(machine.exports);
-            info.documents.addAll(machine.documents);
-            info.ignoreds.addAll(machine.ignoreds);
-            info.action = machine.action;
-            info.controller = machine.controller;
-            info.disabledEntityBody = machine.disabledEntityBody;
-            info.maxEntityBodySize = machine.maxEntityBodySize;
+         info.service = this;
+         info.modules.putAll(machine.modules);
+         info.settings.putAll(machine.settings);
+         info.exports.putAll(machine.exports);
+         info.documents.addAll(machine.documents);
+         info.ignoreds.addAll(machine.ignoreds);
+         info.action = machine.action;
+         info.controller = machine.controller;
+         info.disabledEntityBody = machine.disabledEntityBody;
+         info.maxEntityBodySize = machine.maxEntityBodySize;
 
-            info.serverPath = this.bootstrapPath;
-            this.parseApplication(info, helper, nodes.item(i));
+         info.serverPath = this.bootstrapPath;
+         this.parseApplication(info, helper, nodes.item(i));
 
-            appInfos.put(info.host, info);
-        }*/
+         appInfos.put(info.host, info);
+         }*/
         //include
     }
 
@@ -280,11 +288,11 @@ public class HttpService extends Service implements ServiceProvider {
         if (attr == null) {
             throw new XmlException("miss attribute [path]");
         }
-        
+
         WebApplicationStartupInfo info = new WebApplicationStartupInfo();
         info.rootdir = attr.getNodeValue();
         info.service = this;
-        info.serviceLoader=this.getLoader();
+        info.serviceLoader = this.getLoader();
         info.modules.putAll(machine.modules);
         info.settings.putAll(machine.settings);
         info.exports.putAll(machine.exports);
@@ -295,7 +303,7 @@ public class HttpService extends Service implements ServiceProvider {
         info.disabledEntityBody = machine.disabledEntityBody;
         info.maxEntityBodySize = machine.maxEntityBodySize;
         info.serverPath = this.bootstrapPath;
-        
+
         NodeList nodes = helper.selectNodes(root, "dependency");
         if (nodes != null) {
             Node node;
@@ -312,9 +320,9 @@ public class HttpService extends Service implements ServiceProvider {
                 }
             }
         }
-        File file = new File(info.rootdir+"/WEB-INF/mano.web.xml");
+        File file = new File(info.rootdir + "/WEB-INF/mano.web.xml");
         if (!file.exists() || !file.getName().toLowerCase().endsWith(".xml")) {
-            throw new XmlException("Nonreadable file:"+file);
+            throw new XmlException("Nonreadable file:" + file);
         }
         helper = XmlHelper.load(file.toString());
         root = helper.selectNode("/application");
@@ -462,9 +470,11 @@ public class HttpService extends Service implements ServiceProvider {
         }
     }
 
-    boolean createContext(HttpRequestImpl req) {
+    boolean processRequest(HttpRequestImpl req) {
+
         WebApplicationStartupInfo info = null;
         String host = req.headers().get("Host").value();
+        //System.out.println("======here");
         for (WebApplicationStartupInfo i : appInfos.values()) {
             if (i.matchHost(host)) {
                 info = i;
@@ -483,16 +493,24 @@ public class HttpService extends Service implements ServiceProvider {
                 HttpContextImpl context = new HttpContextImpl(req, new HttpResponseImpl(req.connection));
                 context.server = info.getServerInstance();
                 context.application = app;
-                req.connection.context = context;
+
                 //session
                 Service svc = this.getContainer().getService("cache.service");
                 if (svc != null && svc instanceof ServiceProvider) {
                     CacheProvider provider = ((ServiceProvider) svc).getService(CacheProvider.class);//TODO: 指定实例服务
                     if (provider != null) {
-                        String sid = context.getRequest().getCookie().get(HttpSession.COOKIE_KEY);
+                        String sid = req.getCookie().get(HttpSession.COOKIE_KEY);
                         context.session = HttpSession.getSession(sid, provider);
+
+                        if (context.session.isNewSession()) {
+                            //req.url().getHost()
+                            context.response.getCookie().set(HttpSession.COOKIE_KEY, context.session.getSessionId(), 0, "/", null, false, false);
+                            
+                        }
                     }
                 }
+                context.response.setHeader("Server", context.getServer().getVersion());
+                //context.response.setHeader("X-Powered-By", "mano/1.1,java/1.8");
 
                 app.init(context);
                 return true;
@@ -509,10 +527,14 @@ public class HttpService extends Service implements ServiceProvider {
     void onConnected(AsynchronousSocketChannel chan) {
         connections.add(chan);
         cos.addAndGet(1);
-        HttpConnection conn = new HttpConnection();
+
+        HttpChannel conn = new HttpChannel();
+        conn.open(chan, new ByteArrayBuffer(1024 * 4));
+
+        //HttpConnection conn = new HttpConnection();
         conn.service = this;
         //conn.buffer = this.workBufferPool().get();
-        conn.open(chan);
+        //conn.open(chan);
         logger.info("current connections count:%s", cos.get());
     }
 
@@ -608,5 +630,31 @@ public class HttpService extends Service implements ServiceProvider {
 
         public InetSocketAddress address;
         public boolean disabled = false;
+    }
+
+    public static void main(String[] args) throws Exception {
+        AsynchronousChannelGroup group = AsynchronousChannelGroup.withThreadPool(Executors.newCachedThreadPool());
+        AsynchronousServerSocketChannel chan = AsynchronousServerSocketChannel.open(group);
+        chan.bind(new InetSocketAddress(9999), 1024);
+        chan.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+
+        chan.accept(chan, new CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel>() {
+
+            @Override
+            public void completed(AsynchronousSocketChannel result, AsynchronousServerSocketChannel attachment) {
+                HttpChannel conn = new HttpChannel();
+                conn.open(result, new ByteArrayBuffer(1024 * 4));
+
+                chan.accept(chan, this);
+
+            }
+
+            @Override
+            public void failed(Throwable exc, AsynchronousServerSocketChannel attachment) {
+
+            }
+        });
+
+        Thread.sleep(1000 * 60 * 20);
     }
 }

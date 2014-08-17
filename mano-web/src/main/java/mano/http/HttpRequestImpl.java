@@ -7,15 +7,19 @@
  */
 package mano.http;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import mano.InvalidOperationException;
 import mano.Resettable;
 import mano.io.Buffer;
 import mano.net.ByteArrayBuffer;
+import mano.net.ChannelHandler;
 import mano.util.NameValueCollection;
 
 /**
@@ -24,50 +28,57 @@ import mano.util.NameValueCollection;
  */
 class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
-    String _method;
-    String _rawUrl;
-    String _version;
-    HttpHeaderCollection _headers;
+    String method;
+    String rawUrl;
+    String version;
+    HttpHeaderCollection headers;
     Map<String, String> _form;
     Map<String, HttpPostFile> _files;
     Map<String, String> _query;
     long _contentLength;
-    HttpConnection connection;
+    HttpChannel connection;
     AtomicLong remaining = new AtomicLong(0);
     boolean isChunked;
     boolean _hasPostData;
     boolean isFormUrlEncoded;
     boolean isFormMultipart;
     String _boundary;
+    private URL url;
 
-    public HttpRequestImpl(HttpConnection conn) {
-        this._headers = new HttpHeaderCollection();
+    public HttpRequestImpl(HttpChannel conn) {
+        this.headers = new HttpHeaderCollection();
         connection = conn;
     }
 
     @Override
     public String method() {
-        return this._method;
+        return this.method;
     }
 
     @Override
     public String rawUrl() {
-        return this._rawUrl;
+        return this.rawUrl;
     }
 
     @Override
     public URL url() {
-        String url = "http://";
-        url += this._headers.get("host").value();
-        url += this._rawUrl;
-        try {
-            URL result = new URL(url);
-            return result;
-        } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        if (url == null) {
+            String path;
+            if (this.rawUrl.startsWith("/")) {
+                path = this.isSecure() ? "https://" : "http://";
+                path += this.headers.get("host").value();
+                path += this.rawUrl;
+            } else {
+                path = this.rawUrl;
+            }
+
+            try {
+                url = new URL(path);
+            } catch (MalformedURLException e) {
+                throw new mano.InvalidOperationException(e.getMessage(), e);
+            }
         }
-        return null;
+        return url;
     }
 
     @Override
@@ -76,16 +87,16 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     }
 
     boolean hasPostData() throws HttpException {
-        if ("POST".equalsIgnoreCase(this._method)
-                || "PUT".equalsIgnoreCase(this._method)) {
-            if (this._headers.containsKey("Transfer-Encoding")
-                    && "chunked".equalsIgnoreCase(this._headers.get("Transfer-Encoding").value())) {
+        if ("POST".equalsIgnoreCase(this.method)
+                || "PUT".equalsIgnoreCase(this.method)) {
+            if (this.headers.containsKey("Transfer-Encoding")
+                    && "chunked".equalsIgnoreCase(this.headers.get("Transfer-Encoding").value())) {
                 isChunked = true;
                 _hasPostData = true;
-            } else if (!this._headers.containsKey("Content-length")) {
+            } else if (!this.headers.containsKey("Content-length")) {
                 throw new HttpException(HttpStatus.LengthRequired, "Length Required");
             } else {
-                this._contentLength = Long.parseLong(this._headers.get("Content-Length").value());
+                this._contentLength = Long.parseLong(this.headers.get("Content-Length").value());
                 if (this._contentLength > 0) {
                     remaining.set(_contentLength);
                     _hasPostData = true;
@@ -93,14 +104,14 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
             }
         }
 
-        if (_hasPostData && this._headers.containsKey("Content-Type")) {
+        if (_hasPostData && this.headers.containsKey("Content-Type")) {
 
             //String ctype = (this.headers.get("Content-Type").value() + "").trim();
-            if ("application/x-www-form-urlencoded".equalsIgnoreCase(this._headers.get("Content-Type").value())) {
+            if ("application/x-www-form-urlencoded".equalsIgnoreCase(this.headers.get("Content-Type").value())) {
                 isFormUrlEncoded = true;
-            } else if ("multipart/form-data".equalsIgnoreCase(this._headers.get("Content-Type").value())) {
+            } else if ("multipart/form-data".equalsIgnoreCase(this.headers.get("Content-Type").value())) {
                 isFormMultipart = true;
-                _boundary = "--" + this._headers.get("Content-Type").attr("boundary");
+                _boundary = "--" + this.headers.get("Content-Type").attr("boundary");
             }
         }
 
@@ -144,9 +155,6 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     @Override
     public synchronized void appendFormItem(String name, String value) {
 
-        if (_form == null) {
-            _form = new NameValueCollection<>();
-        }
         _form.put(name, value);
     }
 
@@ -183,12 +191,16 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
             try {
                 LoadExactDataHandler handler = this.connection.service.loadExactDataHandlerPool.get();
                 handler.request = this;
+                handler.remaining=this.getContentLength();
                 if (this.isFormUrlEncoded) {
                     handler.handler = new HttpFormUrlEncodedParser();
+                    System.out.println("=====here1:"+remaining);
                 } else {
                     handler.handler = new HttpMultipartParser(this._boundary);
+                    System.out.println("=====here2:"+remaining);
                 }
-                connection.read(handler);
+                
+                handler.onRead(connection, 1, connection.getBuffer(), this);
             } catch (Exception ex) {
                 throw new java.lang.RuntimeException(ex);
             }
@@ -207,12 +219,12 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public String version() {
-        return this._version;
+        return this.version;
     }
 
     @Override
     public String protocol() {
-        return this._version;
+        return this.version;
     }
 
     @Override
@@ -234,10 +246,10 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     public void loadEntityBody(HttpEntityBodyHandler handler) throws InvalidOperationException, NullPointerException {
         try {
             LoadExactDataHandler worker = this.connection.service.loadExactDataHandlerPool.get();
+            worker.remaining=this.getContentLength();
             worker.request = this;
             worker.handler = handler;
-            connection.read(worker);
-            //connection.requestHandler = new LoadExactDataHandler(this, new HttpMultipartParser(this._boundary));
+            worker.onRead(connection, 1, connection.getBuffer(), this);
         } catch (Exception ex) {
             throw new java.lang.RuntimeException(ex);
         }
@@ -255,53 +267,64 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public HttpHeaderCollection headers() {
-        return this._headers;
+        return this.headers;
     }
 
     @Override
     public Map<String, String> form() {
+        _form = new NameValueCollection<>();
         loadPostData();
         return _form;
     }
 
     @Override
     public Map<String, HttpPostFile> files() {
+        _files = new NameValueCollection<>();
         loadPostData();
         return this._files;
     }
-    
-    
-    
-    static class LoadExactDataHandler implements ReceivedHandler, Resettable {
+
+    static class LoadExactDataHandler extends ChannelHandler<HttpChannel, HttpRequestImpl> implements Resettable {
 
         HttpRequestImpl request;
         HttpEntityBodyHandler handler;
-
-        @Override
-        public synchronized ReceivedHandler onRead(ByteArrayBuffer buffer) throws Exception {
-
-            int p = buffer.position();
-            handler.onRead(buffer, request);
-            int z = buffer.position() - p;
-
-            request.remaining.set(request.remaining.get() - z);
-            if (request.remaining.get() <= 0) {
-                synchronized (request.postLoadFlag) {
-                    request.postLoadFlag.set(true);
-                    request.postLoadFlag.notify();
-                }
-                request.connection.service.loadExactDataHandlerPool.put(this);
-                return null;
-            }
-            return this;
-        }
-
+        long remaining=0;
         @Override
         public void reset() {
             handler = null;
             request = null;
+            remaining=0;
+        }
+
+        @Override
+        protected void onRead(HttpChannel channel, int bytesRead, ByteArrayBuffer buffer, HttpRequestImpl token) {
+            
+            int pos = buffer.position();
+            try {
+                System.out.println("=====ccccc");
+                handler.onRead(buffer, request);
+            } catch (Exception ex) {
+                System.out.println("=====eeeee"+ex.getMessage());
+                this.onFailed(channel, ex);
+                return;
+            }
+            
+            int eat = buffer.position() - pos;
+            remaining-=eat;
+            if (eat == 0 && buffer.position() == 0 && !buffer.hasRemaining()) {
+                this.onFailed(channel, new java.lang.OutOfMemoryError("buffer has been full."));
+                return;
+            } else if(remaining>0) {
+                buffer.compact();
+                
+                channel.read(this, token);
+            }
+        }
+
+        @Override
+        protected void onFailed(HttpChannel channel, Throwable exc) {
+            channel.onFailed(this, exc);
         }
     }
 
-    
 }

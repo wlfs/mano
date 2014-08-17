@@ -31,69 +31,40 @@ import mano.web.ViewEngine;
  * @author jun <jun@diosay.com>
  */
 public class OtplViewEngine extends ViewEngine {
-
-    EmitParser parser = new EmitParser();
+    
+    EmitParser parser=new EmitParser();
     Interpreter interpreter = new Interpreter();
-    Logger logger=Logger.getDefault();//TODO:
+    Logger logger = Logger.getDefault();//TODO:
+
     @Override
     public String compile(String tempdir, String tplName) {
-        /*try {
-            parser.open(tplName);
-        } catch (FileNotFoundException ex) {
-            logger.error(null, ex);
-            
-        }*/
-
-        try {
-            parser.parse();
-            File f = new File(tempdir + Integer.toHexString(tplName.hashCode()) + ".il");
-            if (f.exists()) {
-                f.delete();
-            }
-            f.createNewFile();
-            tplName = f.getAbsolutePath();
-            FileOutputStream fs = new FileOutputStream(f);
-            parser.compile(fs);
-            fs.close();
-        } catch (Exception ex) {
-            logger.error(null, ex);
-        }
-        return tplName;
+        return null;
     }
-
+    
     @Override
     public void render(RequestService service, String tmpName) {
-        for (Map.Entry<String, Object> entry : service.getEntries()) {
-            interpreter.set(entry.getKey(), entry.getValue());
-        }
-        OutProxy proxy = new OutProxy();
-        proxy.context = service.getContext();
-
-        interpreter.setOut(proxy);
-        try {
-            interpreter.exec(tmpName);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        proxy.context.getResponse().end();
+        return;
     }
-
+    
     @Override
     public void render(RequestService service) {
-        String source = Utility.combinePath(this.getViewdir(), service.getRequestPath()).toString();
-        String target = Integer.toHexString(this.getViewdir().hashCode()) + "$" + Integer.toHexString(source.hashCode())+".otc";
-
+        String source = Utility.combinePath(this.getViewdir(), service.getPath()).toString();
+        String target = Integer.toHexString(this.getViewdir().hashCode()) + "$" + Integer.toHexString(source.hashCode()) + ".otc";
+        service.getContext().getApplication().getLogger().debug(source);
         File target_file = new File(Utility.combinePath(this.getTempdir(), target).toUri());
         OutProxy proxy = new OutProxy();
         proxy.context = service.getContext();
         try {
             if (target_file.exists()) {
-                target_file.delete();
+                if (!target_file.delete()) {
+                    service.getContext().getApplication().getLogger().debug("file deleting failed:" + target_file);
+                }
             }
-
+            service.getContext().getApplication().getLogger().debug("create file :" + target_file);
             if (true) {
                 target_file.createNewFile();
                 
+                //parser=new EmitParser();
                 parser.compile(source, target_file.toString());
             }
             for (Map.Entry<String, Object> entry : service.getEntries()) {
@@ -105,34 +76,34 @@ public class OtplViewEngine extends ViewEngine {
         } catch (Exception ex) {
             logger.error(null, ex);
             try {
-                service.getContext().getResponse().write(ex.getMessage());  
+                service.getContext().getResponse().write(ex.getMessage());                
             } catch (Exception e) {
                 logger.error(null, e);
             }
         }
     }
-
+    
     public static class OutProxy extends OutputStream {
-
+        
         HttpContext context;
         public Stack<Object> stack;
         public Map<String, Object> args;
-
+        
         public OutProxy() {
             stack = new Stack<>();
             args = new HashMap<>();
         }
-
+        
         @Override
         public void flush() throws IOException {
             context.getResponse().flush();
         }
-
+        
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
             context.getResponse().write(b, off, len);
         }
-
+        
         @Override
         public void write(int b) throws IOException {
             context.getResponse().write(new byte[]{(byte) b}, 0, 1);

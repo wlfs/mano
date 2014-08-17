@@ -7,6 +7,7 @@
  */
 package mano.caching;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -32,8 +33,9 @@ public class HashCacheProvider implements CacheProvider {
             entry.key = key;
             entries.put(key, entry);
         }
-
+        
         entry.callback = callback;
+        entry.visited=Instant.now().toEpochMilli();
         entry.timeout = timeout;
         entry.value = value;
         entry.canUpdate = update;
@@ -45,17 +47,14 @@ public class HashCacheProvider implements CacheProvider {
         ItemEntry entry = null;
         if (entries.containsKey(key)) {
             entry = entries.get(key);
-        }
-
-        if (entry != null) {
             if (entry.isExpired()) {
                 this.remove(key);
-
-                //call
                 entry = null;
             }
+            else{
+                entry.visited=Instant.now().toEpochMilli();
+            }
         }
-
         return entry;
     }
 
@@ -145,8 +144,8 @@ public class HashCacheProvider implements CacheProvider {
 
         @Override
         public boolean isExpired() {
-
-            return 0 - visited > timeout;
+            //return false;
+            return Instant.now().toEpochMilli() - visited > timeout;
         }
 
         @Override

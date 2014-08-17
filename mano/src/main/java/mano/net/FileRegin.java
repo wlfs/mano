@@ -13,14 +13,25 @@ package mano.net;
  * @author jun <jun@diosay.com>
  */
 public class FileRegin implements Buffer {
+    private String file;
+    private long pos;
+    private long limit;
     public String getFilename(){
-        return null;
+        return file;
     }
     public long getPosition(){
-        return 0;
+        return pos;
     }
     public long getLimit(){
-        return 0;
+        return limit;
+    }
+    
+    public static FileRegin create(String file,long pos,long limit){
+        FileRegin result=new FileRegin();
+        result.file=file;
+        result.pos=pos;
+        result.limit=limit;
+        return result;
     }
     
 }

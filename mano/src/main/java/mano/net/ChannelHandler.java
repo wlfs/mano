@@ -11,25 +11,25 @@ package mano.net;
  *
  * @author jun <jun@diosay.com>
  */
-public abstract class ChannelHandler<T extends Channel> implements Runnable {
+public abstract class ChannelHandler<TC extends Channel,TT extends Object> implements Runnable {
 
-    private T chan;
+    private TC chan;
     private int reads;
-    private Buffer buf;
-    private Object attachment;
+    private ByteArrayBuffer buf;
+    private TT attachment;
     private Throwable error;
     private Object sender;
 
-    final void init(Object sender, Channel channel, int bytesTransferred, Buffer buffer, Object token, Throwable exc) {
+    final void init(Object sender, TC channel, int bytesTransferred, ByteArrayBuffer buffer, TT token, Throwable exc) {
         this.sender = sender;
         this.error = exc;
-        //this.chan = channel;
+        this.chan = channel;
         this.reads = bytesTransferred;
         this.buf = buffer;
         this.attachment = token;
     }
     
-    final void attach(Object attachment) {
+    final void attach(TT attachment) {
         this.attachment = attachment;
     }
 
@@ -60,11 +60,9 @@ public abstract class ChannelHandler<T extends Channel> implements Runnable {
         this.reads = -1;
         this.buf = null;
         this.attachment = null;
-        
-        
     }
 
-    protected abstract void onRead(T channel, int bytesRead, Buffer buffer, Object token);
+    protected abstract void onRead(TC channel, int bytesRead, ByteArrayBuffer buffer, TT token);
 
-    protected abstract void onFailed(Channel channel, Throwable exc);
+    protected abstract void onFailed(TC channel, Throwable exc);
 }

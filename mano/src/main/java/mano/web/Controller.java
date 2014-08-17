@@ -24,9 +24,10 @@ import mano.util.logging.Logger;
  */
 public abstract class Controller {
 
-    protected HttpResponse response;
-    protected HttpRequest request;
-    protected HttpContext context;
+    
+    private HttpResponse response;
+    private HttpRequest request;
+    private HttpContext context;
     private RequestService service;
     private JsonConverter jsonConverter;
 

@@ -25,15 +25,19 @@ public class HttpFormUrlEncodedParser implements HttpEntityBodyHandler {
 
     @Override
     public void onRead(ByteArrayBuffer buffer, HttpRequestAppender appender) throws UnsupportedEncodingException, HttpException, IOException {
+        System.out.println("=====kkkkkkkkkkkkk");
         if (done) {
-            buffer.reset();
+            //buffer.reset();
             return;
         }
         
         String line;
         if (buffer.length() == appender.getContentLength()) {
+            System.out.println("=====aa");
             line = buffer.readstr();
+            
         } else if (appender.getContentLength() > buffer.inner().capacity()) {
+            System.out.println("=====bbbb");
             if (worker == null) {
                 if (appender.getContentLength() > Integer.MAX_VALUE - 1) {
                     throw new HttpException(HttpStatus.RequestEntityTooLarge, "Request entity too large");
@@ -49,9 +53,11 @@ public class HttpFormUrlEncodedParser implements HttpEntityBodyHandler {
             buffer.position(buffer.position() + buffer.length());
             line = worker.readln();
         } else {
+            System.out.println("=====ggggggggggggg");
             line = buffer.readln();
         }
         if (line == null) {
+            System.out.println("=====dddddddddddddddd");
             return;
         }
         parse(line, appender);
@@ -59,6 +65,7 @@ public class HttpFormUrlEncodedParser implements HttpEntityBodyHandler {
 
     private void parse(String line, HttpRequestAppender appender) {
         done = true;
+        System.out.println(line);
         HashMap<String, String> map = new HashMap<>();
         HttpUtil.queryStringToMap(line, map);
         map.entrySet().forEach(item -> {

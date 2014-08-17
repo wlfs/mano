@@ -62,6 +62,7 @@ public abstract class Parser {
     }
 
     public void parse() throws IOException {
+        line=0;
         lines = new HashMap<>();
         dom = new Document(this);
         String s;

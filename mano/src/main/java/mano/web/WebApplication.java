@@ -130,7 +130,7 @@ public class WebApplication {
         ArrayList<String> paths = new ArrayList<>();
         String path = context.getRequest().url().getPath();
         paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path).toString());
-        if (path.endsWith("/")) {
+        if (true) {//path.endsWith("/")
             for (String s : startupInfo.documents) {
                 paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path, s).toString());
             }

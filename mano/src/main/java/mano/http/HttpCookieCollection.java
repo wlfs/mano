@@ -42,6 +42,7 @@ public class HttpCookieCollection implements HttpResponseCookie {
         }
         entry.value = value == null ? "" : value.toString();
         entry.domain = domain;
+        entry.path=path;
         entry.expires = expires;
         entry.httponly = httpOnly;
         entry.secure = secure;

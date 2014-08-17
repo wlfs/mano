@@ -10,6 +10,7 @@ package mano.net;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import mano.Resettable;
 import mano.io.Stream;
 
@@ -21,14 +22,19 @@ public class ByteArrayBuffer implements Buffer, Resettable {
 
     protected ByteBuffer inner;
     public byte[] array;
+
     public ByteArrayBuffer(byte[] array, int index, int length) {
         inner = ByteBuffer.wrap(array, index, length);
-        array=inner.array();
+        array = inner.array();
+    }
+
+    public ByteArrayBuffer(byte[] array) {
+        this(array, 0, array.length);
     }
 
     public ByteArrayBuffer(int capacity) {
         inner = ByteBuffer.allocate(capacity);
-        array=inner.array();
+        array = inner.array();
     }
 
     public ByteBuffer inner() {
@@ -174,7 +180,7 @@ public class ByteArrayBuffer implements Buffer, Resettable {
      * @return 有效数据长度。
      */
     public int length() {
-        return inner.limit();
+        return inner.limit() - inner.position();
         //return this.len - this.pos;
     }
 
@@ -256,6 +262,10 @@ public class ByteArrayBuffer implements Buffer, Resettable {
     }
 
     public synchronized String readln(String charset) throws UnsupportedEncodingException {
+        return readln(Charset.forName(charset));
+    }
+
+    public synchronized String readln(Charset charset) {
         int off = inner.arrayOffset() + inner.position();
         if (inner.limit() < CRLF.length) {
             return null;
@@ -280,6 +290,10 @@ public class ByteArrayBuffer implements Buffer, Resettable {
     }
 
     public synchronized String readstr(int off, int count, String charset) throws UnsupportedEncodingException {
+        return this.readstr(off, count, Charset.forName(charset));
+    }
+
+    public synchronized String readstr(int off, int count, Charset charset) {
         String result = new String(inner.array(), off, count, charset);
         //this.pos += count;
         inner.position(inner.position() + count);
@@ -291,7 +305,7 @@ public class ByteArrayBuffer implements Buffer, Resettable {
     }
 
     public synchronized String readstr(String charset) throws UnsupportedEncodingException {
-        return readstr(inner.arrayOffset() + inner.position(), inner.limit(), charset);
+        return readstr(inner.arrayOffset() + inner.position(), this.length(), charset);
     }
 
     public synchronized String readstr() throws UnsupportedEncodingException {
