@@ -15,7 +15,7 @@
         <!--WEB的编译路径${basedir}/src/main/webapp-->
         <build.dir>C:\Users\jun\Desktop\server\test</build.dir>
         <!--服务器安装目录-->
-        <server.dir>E:\repositories\java\mano\mano-server\target\build</server.dir>
+        <server.dir>E:\repositories\java\mano\mano-server-projects\mano-server\target\build</server.dir>
         <endorsed.dir>${project.build.directory}/endorsed</endorsed.dir>
         <manoserver.proerties.file>${basedir}/webapp/WEB-INF/conf/manoserver.proerties</manoserver.proerties.file>
     </properties>
@@ -46,6 +46,14 @@
                     <buildDirectory>${build.dir}</buildDirectory>
                     <serverDirectory>${server.dir}</serverDirectory>
                 </configuration>
+                <executions>
+                    <execution>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

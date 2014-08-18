@@ -33,7 +33,8 @@ import java.util.regex.Pattern;
 import mano.http.HttpContext;
 import mano.http.HttpModule;
 import mano.util.Utility;
-import java.net.URLDecoder; 
+import java.net.URLDecoder;
+
 /**
  *
  * @author jun <jun@diosay.com>
@@ -63,17 +64,17 @@ public class UrlRouteModule implements HttpModule {
                 }
             });
         }
-        
-        public void scan(URL url){
+
+        public void scan(URL url) {
             String protocol = url.getProtocol().toLowerCase();
-            if("file".equals(protocol)){
+            if ("file".equals(protocol)) {
                 try {
-                    this.scanFile(new File( URLDecoder.decode(url.getFile(), "UTF-8")));
+                    this.scanFile(new File(URLDecoder.decode(url.getFile(), "UTF-8")));
                 } catch (UnsupportedEncodingException ex) {
                     app.getLogger().debug(null, ex);
                 }
-            }else if("jar".equals(protocol)){
-                scanJar(url,null);
+            } else if ("jar".equals(protocol)) {
+                scanJar(url, null);
             }
         }
 
@@ -82,7 +83,7 @@ public class UrlRouteModule implements HttpModule {
             try {
                 jar = ((JarURLConnection) url.openConnection()).getJarFile();
             } catch (IOException ex) {
-                app.getLogger().debug("URL:"+url.toString(), ex);
+                app.getLogger().debug("URL:" + url.toString(), ex);
                 return;
             }
             Enumeration<JarEntry> entries = jar.entries();
@@ -112,7 +113,11 @@ public class UrlRouteModule implements HttpModule {
                 return;
             } else if (dir.isFile() && dir.getName().toLowerCase().endsWith(".jar")) {
                 try {
-                    scanJar(new URL("jar:file://" + dir.toString() + "!/"), dir.getName().substring(0, dir.getName().length() - 4));
+                    if (File.separator.equals("\\")) {
+                        scanJar(new URL("jar:file:/" + dir.toString() + "!/"), dir.getName().substring(0, dir.getName().length() - 4));
+                    } else {
+                        scanJar(new URL("jar:file://" + dir.toString() + "!/"), dir.getName().substring(0, dir.getName().length() - 4));
+                    }
                 } catch (MalformedURLException ex) {
                     app.getLogger().debug(null, ex);
                 }
@@ -343,7 +348,7 @@ public class UrlRouteModule implements HttpModule {
 
         RequestService rs = null;
         for (Route route : RouteTable) {//TODO: 测试未考虑效率
-            test = Pattern.compile(route.patten,Pattern.CASE_INSENSITIVE);
+            test = Pattern.compile(route.patten, Pattern.CASE_INSENSITIVE);
             matcher = test.matcher(tryPath);
             app.getLogger().debug("matching: patten:%s , url:%s ", route.patten, tryPath);
             if (matcher.matches()) {
