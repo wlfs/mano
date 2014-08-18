@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+定义WEB应用，以便服务器自动发现。
+-->
+<application path="">
+    <dependency path=""/>
+</application>
