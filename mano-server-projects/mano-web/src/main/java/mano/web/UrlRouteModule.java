@@ -58,7 +58,9 @@ public class UrlRouteModule implements HttpModule {
                     try {
                         scanJar(new URL("jar:file:/" + tmp.toString() + "/" + name + "!/"), name.substring(0, name.length() - 4));
                     } catch (MalformedURLException ex) {
-                        app.getLogger().debug(null, ex);
+                        if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                            app.getLogger().debug(null, ex);
+                        }
                     }
                     return false;
                 }
@@ -71,7 +73,9 @@ public class UrlRouteModule implements HttpModule {
                 try {
                     this.scanFile(new File(URLDecoder.decode(url.getFile(), "UTF-8")));
                 } catch (UnsupportedEncodingException ex) {
-                    app.getLogger().debug(null, ex);
+                    if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                        app.getLogger().debug(null, ex);
+                    }
                 }
             } else if ("jar".equals(protocol)) {
                 scanJar(url, null);
@@ -94,12 +98,13 @@ public class UrlRouteModule implements HttpModule {
                 name = entry.getName();
 
                 if (!entry.isDirectory() && name.endsWith(".class") && name.indexOf("$") < 1) {//
+                    name = (name.substring(0, name.length() - 6)).replace('/', '.');
                     try {
-                        name = (name.substring(0, name.length() - 6)).replace('/', '.');
-                        onFoundClass(app.getLoader().loadClass(name));//Class.forName(name)
-                    } catch (ClassNotFoundException ex) {
-                        app.getLogger().debug(null, ex);
-                        //ignored
+                        onFoundClass(app.getLoader().loadClass(name));
+                    } catch (Throwable ex) {
+                        if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                            app.getLogger().debug(null, ex);
+                        }
                     }
                 }
             }
@@ -119,15 +124,19 @@ public class UrlRouteModule implements HttpModule {
                         scanJar(new URL("jar:file://" + dir.toString() + "!/"), dir.getName().substring(0, dir.getName().length() - 4));
                     }
                 } catch (MalformedURLException ex) {
-                    app.getLogger().debug(null, ex);
+                    if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                        app.getLogger().debug(null, ex);
+                    }
                 }
             } else if (dir.isFile() && dir.getName().toLowerCase().endsWith(".class")) {
+                //如果是java类文件 去掉后面的.class 只留下类名  
+                String className = dir.getName().substring(0, dir.getName().length() - 6);
                 try {
-                    //如果是java类文件 去掉后面的.class 只留下类名  
-                    String className = dir.getName().substring(0, dir.getName().length() - 6);
                     onFoundClass(app.getLoader().loadClass(className));
-                } catch (Exception ex) {
-                    app.getLogger().debug(null, ex);
+                } catch (Throwable ex) {
+                    if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                        app.getLogger().debug(null, ex);
+                    }
                 }
             } else if (dir.isDirectory()) {
                 dir.listFiles((file) -> {
@@ -137,10 +146,23 @@ public class UrlRouteModule implements HttpModule {
             }
         }
 
+        final Class<?> foundClass(String type) {
+            try {
+                return app.getLoader().loadClass(type);
+            } catch (Throwable ex) {
+                if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                    app.getLogger().debug(null, ex);
+                }
+            }
+            return null;
+        }
+
         final Pattern pattern = Pattern.compile("\\{\\s*(\\w+)\\s*\\}");
 
         public void onFoundClass(Class<?> clazz) {
-
+            if (clazz == null) {
+                return;
+            }
             //.*/controller/action/(\w*)/(\w*).*
             //\{(\w+)(\?){0,1}\}
             //{?name}
@@ -177,7 +199,7 @@ public class UrlRouteModule implements HttpModule {
                 }
                 try {
                     clazz.getMethod("setService", RequestService.class);
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     return;
                 }
                 url = mapping.value();
@@ -307,16 +329,18 @@ public class UrlRouteModule implements HttpModule {
 
     @Override
     public void init(WebApplication app, Map<String, String> params) {
-        //controllers scanning
-        //UrlRouteModule.class.getPackage().
         this.app = app;
         JarScanner js = new JarScanner();
-        //js.scan(Utility.combinePath(app.getApplicationPath(), "bin").toString());
+        if (java.lang.MANO_WEB_MACRO.DEBUG) {
+            app.getLogger().info("scanning controllers...");
+        }
         for (URL url : app.getLoader().getURLs()) {
             try {
                 js.scan(url);
-            } catch (Exception ex) {
-                app.getLogger().debug(null, ex);
+            } catch (Throwable ex) {
+                if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                    app.getLogger().debug("scanning jar:" + url, ex);
+                }
             }
         }
 

@@ -24,7 +24,6 @@ import mano.util.logging.Logger;
  */
 public abstract class Controller {
 
-    
     private HttpResponse response;
     private HttpRequest request;
     private HttpContext context;
@@ -35,9 +34,9 @@ public abstract class Controller {
         service = rs;
         context = rs.getContext();
     }
-    
-    private RequestService getService(){
-        if(this.service==null){
+
+    private RequestService getService() {
+        if (this.service == null) {
             throw new mano.InvalidOperationException("未初始化服务。");
         }
         return this.service;
@@ -108,28 +107,36 @@ public abstract class Controller {
         getContext().getResponse().setContentType(contentType);
         getContext().getResponse().write(content);
     }
-    
+
+    protected final void setJsonConverter(JsonConverter converter) {
+        jsonConverter = converter;
+    }
 
     protected void json(Object src) {
         if (jsonConverter == null) {
             jsonConverter = JsonConvert.getConverter(getLoader());
+
+            if (jsonConverter == null) {
+                throw new NullPointerException("Controller.json:Not found JsonConverter");
+            }
         }
+
         getContext().getResponse().setContentType("application/json;charset=utf-8");
         getContext().getResponse().write(jsonConverter.serialize(src));
     }
-    
-    public HttpContext getContext(){
+
+    public HttpContext getContext() {
         return getService().getContext();
     }
-    
-    public WebApplication getApplication(){
+
+    public WebApplication getApplication() {
         return getContext().getApplication();
     }
 
     public Logger getLogger() {
         return new Logger(new CansoleLogProvider());
     }
-    
+
     public ContextClassLoader getLoader() {
         return getApplication().getLoader();
     }
