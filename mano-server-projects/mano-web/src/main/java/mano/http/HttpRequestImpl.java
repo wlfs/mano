@@ -124,7 +124,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
             _query = new NameValueCollection<>();
 
             String query = this.url().getQuery() == null ? "" : this.url().getQuery().trim();
-            if ((query != null && "".equals(query))) {
+            if ((query != null && !"".equals(query))) {
                 if (query.startsWith("?")) {
                     query = query.substring(1);
                 }

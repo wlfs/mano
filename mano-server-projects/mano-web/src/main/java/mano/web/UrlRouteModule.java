@@ -367,12 +367,19 @@ public class UrlRouteModule implements HttpModule {
 
     @Override
     public boolean handle(HttpContext context, String tryPath) {
-        Pattern test;
+        Pattern test = null;
         Matcher matcher;
 
         RequestService rs = null;
         for (Route route : RouteTable) {//TODO: 测试未考虑效率
-            test = Pattern.compile(route.patten, Pattern.CASE_INSENSITIVE);
+            try {
+                test = Pattern.compile(route.patten, Pattern.CASE_INSENSITIVE);
+            } catch (Throwable ex) {
+                if (java.lang.MANO_WEB_MACRO.DEBUG) {
+                    app.getLogger().debug("patten error:" + route.patten, ex);
+                }
+                continue;
+            }
             matcher = test.matcher(tryPath);
             app.getLogger().debug("matching: patten:%s , url:%s ", route.patten, tryPath);
             if (matcher.matches()) {
@@ -383,9 +390,10 @@ public class UrlRouteModule implements HttpModule {
                     for (int i = 0; i < types.length; i++) {
                         params[i] = Utility.cast(types[i], matcher.group(route.paramsMapping.get(i)));
                     }
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     continue;
                 }
+                
                 try {
                     rs = new RequestService(context);
                     rs.setController(route.controller);
@@ -406,7 +414,7 @@ public class UrlRouteModule implements HttpModule {
                     }
                     return true;
                     //Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     context.getResponse().write(ex.getClass() + ":" + ex.getMessage());
                     app.getLogger().debug("call route handler", ex);
                     return true;
