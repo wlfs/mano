@@ -154,7 +154,9 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public synchronized void appendFormItem(String name, String value) {
-
+        if (_form == null) {
+            _form = new NameValueCollection<>();
+        }
         _form.put(name, value);
     }
 
@@ -191,15 +193,15 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
             try {
                 LoadExactDataHandler handler = this.connection.service.loadExactDataHandlerPool.get();
                 handler.request = this;
-                handler.remaining=this.getContentLength();
+                handler.remaining = this.getContentLength();
                 if (this.isFormUrlEncoded) {
                     handler.handler = new HttpFormUrlEncodedParser();
-                    System.out.println("=====here1:"+remaining);
+                    System.out.println("=====here1:" + remaining);
                 } else {
                     handler.handler = new HttpMultipartParser(this._boundary);
-                    System.out.println("=====here2:"+remaining);
+                    System.out.println("=====here2:" + remaining);
                 }
-                
+
                 handler.onRead(connection, 1, connection.getBuffer(), this);
             } catch (Exception ex) {
                 throw new java.lang.RuntimeException(ex);
@@ -246,7 +248,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
     public void loadEntityBody(HttpEntityBodyHandler handler) throws InvalidOperationException, NullPointerException {
         try {
             LoadExactDataHandler worker = this.connection.service.loadExactDataHandlerPool.get();
-            worker.remaining=this.getContentLength();
+            worker.remaining = this.getContentLength();
             worker.request = this;
             worker.handler = handler;
             worker.onRead(connection, 1, connection.getBuffer(), this);
@@ -272,15 +274,19 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public Map<String, String> form() {
-        _form = new NameValueCollection<>();
-        loadPostData();
+        if (_form == null) {
+            _form = new NameValueCollection<>();
+            loadPostData();
+        }
         return _form;
     }
 
     @Override
     public Map<String, HttpPostFile> files() {
-        _files = new NameValueCollection<>();
-        loadPostData();
+        if (_files == null) {
+            _files = new NameValueCollection<>();
+            loadPostData();
+        }
         return this._files;
     }
 
@@ -288,35 +294,36 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
         HttpRequestImpl request;
         HttpEntityBodyHandler handler;
-        long remaining=0;
+        long remaining = 0;
+
         @Override
         public void reset() {
             handler = null;
             request = null;
-            remaining=0;
+            remaining = 0;
         }
 
         @Override
         protected void onRead(HttpChannel channel, int bytesRead, ByteArrayBuffer buffer, HttpRequestImpl token) {
-            
+
             int pos = buffer.position();
             try {
                 System.out.println("=====ccccc");
                 handler.onRead(buffer, request);
             } catch (Exception ex) {
-                System.out.println("=====eeeee"+ex.getMessage());
+                System.out.println("=====eeeee" + ex.getMessage());
                 this.onFailed(channel, ex);
                 return;
             }
-            
+
             int eat = buffer.position() - pos;
-            remaining-=eat;
+            remaining -= eat;
             if (eat == 0 && buffer.position() == 0 && !buffer.hasRemaining()) {
                 this.onFailed(channel, new java.lang.OutOfMemoryError("buffer has been full."));
                 return;
-            } else if(remaining>0) {
+            } else if (remaining > 0) {
                 buffer.compact();
-                
+
                 channel.read(this, token);
             }
         }
