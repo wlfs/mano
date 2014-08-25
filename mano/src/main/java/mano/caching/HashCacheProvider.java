@@ -33,9 +33,9 @@ public class HashCacheProvider implements CacheProvider {
             entry.key = key;
             entries.put(key, entry);
         }
-        
+
         entry.callback = callback;
-        entry.visited=Instant.now().toEpochMilli();
+        entry.visited = Instant.now().toEpochMilli();
         entry.timeout = timeout;
         entry.value = value;
         entry.canUpdate = update;
@@ -47,12 +47,11 @@ public class HashCacheProvider implements CacheProvider {
         ItemEntry entry = null;
         if (entries.containsKey(key)) {
             entry = entries.get(key);
-            if (entry.isExpired()) {
+            if (entry != null && entry.isExpired()) {
                 this.remove(key);
                 entry = null;
-            }
-            else{
-                entry.visited=Instant.now().toEpochMilli();
+            } else if (entry != null) {
+                entry.visited = Instant.now().toEpochMilli();
             }
         }
         return entry;
