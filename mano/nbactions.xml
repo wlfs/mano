@@ -7,4 +7,12 @@
                 <goal>deploy</goal>
             </goals>
         </action>
+        <action>
+            <actionName>CUSTOM-gen_doc</actionName>
+            <displayName>gen_doc</displayName>
+            <goals>
+                <goal>generate-sources</goal>
+                <goal>javadoc:javadoc</goal>
+            </goals>
+        </action>
     </actions>

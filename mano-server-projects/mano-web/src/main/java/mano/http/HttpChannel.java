@@ -74,7 +74,7 @@ public class HttpChannel extends AioSocketChannel {
     
     @Override
     public void onClosed() {
-    
+    service.onClosed(this);
     }
     
     private static class ParseHeader extends ChannelHandler<HttpChannel, HttpRequestImpl> {

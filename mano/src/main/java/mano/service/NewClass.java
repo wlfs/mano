@@ -35,11 +35,23 @@ public class NewClass {
         
     }
     
-    public static void main(String...bargs){
+    
+    static class Task{
+        public boolean isDone(){
+            return true;
+        }
+        public void ready(){}
+        public void process(){}
+        public void on(){}
+    }
+    
+    public static void mainS(String...bargs){
         
-        MessageArgs args=new MessageArgs();
+        Task task=new Task();
+        task.ready();
+        //service.publish(catgory,type,params)
         
-        
+        java.util.concurrent.FutureTask<Object> bb;
         
         
     }

@@ -143,6 +143,7 @@ public abstract class AioSocketChannel implements Channel {
     public final void close(boolean force) {
         if (force) {
             close0();
+            onClosed();
         } else {
             paddings.offer(new PaddingClose());
             this.flush();

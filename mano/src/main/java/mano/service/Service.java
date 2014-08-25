@@ -8,6 +8,7 @@
 package mano.service;
 
 import java.util.Map;
+import java.util.Properties;
 import mano.util.logging.LogProvider;
 
 /**
@@ -15,33 +16,51 @@ import mano.util.logging.LogProvider;
  * @author jun <jun@diosay.com>
  */
 public abstract class Service implements Runnable {
+
     private ServiceContainer container;
-    
+    private Properties properties;
+
+    protected Service() {
+        properties = new Properties();
+        container = ServiceManager.getInstance();
+    }
 
     public void init(ServiceContainer container, Map<String, String> params) {
-        this.container=container;
+        this.container = container;
+
     }
 
-    /*public void init(String serviceName, Activator activator, Logger logger) {
-     this.name=serviceName;
-     this.loader = activator;
-     this.logger = logger;
-     }
-    
-    public void param(String name, Object value) {
-        System.out.println(name + "=" + value);
+    public Properties getProperties() {
+        return properties;
     }
 
-    public Object param(String name) {
-        return null;
-    }*/
+    public String getProperty(String key) {
+        return properties.getProperty(key);
+    }
+
+    public String getProperty(String key, String def) {
+        return properties.getProperty(key, def);
+    }
 
     public void stop() {
+        
+    }
 
+    public void onStart() {
+        ServiceManager.getInstance().regisiter(this);
     }
 
     public ServiceContainer getContainer() {
         return container;
+    }
+    
+    public void process(Intent intent) throws Exception{
+        if(intent.getAction() == "process_request"){
+            intent.get("request");
+            
+        }else{
+            intent.get("request");intent.onCompleted();
+        }
     }
 
     public abstract String getServiceName();

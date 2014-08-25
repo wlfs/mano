@@ -66,7 +66,12 @@ public class RunMojo extends AbstractMojo {
         } catch (IOException ex) {
             this.getLog().debug(ex);
         }
-        cfg.deleteOnExit();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            getLog().debug("deletting " + cfg);
+            cfg.delete();
+        }));
+
         Process process = null;
         try {
             //this.getPluginContext()."cmd.exe /C start " + 
@@ -111,9 +116,19 @@ public class RunMojo extends AbstractMojo {
             if (process != null) {
                 process.destroyForcibly();
             }
+            getLog().debug("deletting " + cfg);
+            cfg.delete();
         }
-        
+        getLog().debug("deletting " + cfg);
+        cfg.delete();
         System.out.println("manoserver exit.");
+    }
+    
+    @Override
+    protected void finalize() throws Throwable{
+        System.out.println("manoserver exit.");
+        super.finalize();
+        
     }
 
 }

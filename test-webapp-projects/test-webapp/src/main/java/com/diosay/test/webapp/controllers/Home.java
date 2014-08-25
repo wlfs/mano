@@ -28,7 +28,7 @@ public class Home extends Controller {
     
     @UrlMapping
     public void login(){
-        this.getLogger().info("=====:login");
+        this.getLogger().info("=====:login:"+this.query("tid"));
         view();
     }
     

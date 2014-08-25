@@ -21,6 +21,8 @@ public class SessionHelper {
         Configuration cfg = new Configuration().configure(url);
         StandardServiceRegistryBuilder ssrb = new StandardServiceRegistryBuilder().applySettings(cfg.getProperties());
         StandardServiceRegistry ssr = ssrb.build();
+        java.sql.Date d;
         return cfg.buildSessionFactory(ssr);
     }
+    
 }

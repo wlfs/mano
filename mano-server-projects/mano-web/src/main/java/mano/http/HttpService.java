@@ -40,6 +40,7 @@ import mano.net.Channel;
 import mano.net.ChannelHandler;
 import mano.service.Service;
 import mano.service.ServiceContainer;
+import mano.service.ServiceManager;
 import mano.service.ServiceProvider;
 import mano.util.CachedObjectPool;
 import mano.util.NameValueCollection;
@@ -150,6 +151,21 @@ public class HttpService extends Service implements ServiceProvider {
                 parseParam(item.getKey(), item.getValue());
             });
         }
+
+        try {
+            this.loadConfigs();
+        } catch (XmlException ex) {
+            logger.error("", ex);
+        }
+    }
+
+    private void init2() {
+        loader = ServiceManager.getInstance().getLoader();
+        logger = loader.getLogger();
+
+        this.getProperties().entrySet().stream().forEach(item -> {
+            parseParam(item.getKey().toString(), item.getValue());
+        });
 
         try {
             this.loadConfigs();
@@ -505,7 +521,7 @@ public class HttpService extends Service implements ServiceProvider {
                         if (context.session.isNewSession()) {
                             //req.url().getHost()
                             context.response.getCookie().set(HttpSession.COOKIE_KEY, context.session.getSessionId(), 0, "/", null, false, false);
-                            
+
                         }
                     }
                 }
@@ -521,14 +537,15 @@ public class HttpService extends Service implements ServiceProvider {
     }
 
     final ArrayList<AsynchronousServerSocketChannel> listeners = new ArrayList<>();
-    final ArrayList<AsynchronousSocketChannel> connections = new ArrayList<>();
+    final ArrayList<HttpChannel> connections = new ArrayList<>();
     final AtomicInteger cos = new AtomicInteger();
 
     void onConnected(AsynchronousSocketChannel chan) {
-        connections.add(chan);
+        HttpChannel conn = new HttpChannel();
+        connections.add(conn);
         cos.addAndGet(1);
 
-        HttpChannel conn = new HttpChannel();
+        
         conn.open(chan, new ByteArrayBuffer(1024 * 4));
 
         //HttpConnection conn = new HttpConnection();
@@ -538,19 +555,21 @@ public class HttpService extends Service implements ServiceProvider {
         logger.info("current connections count:%s", cos.get());
     }
 
-    void onClosed(HttpConnection conn) {
+    void onClosed(HttpChannel conn) {
         synchronized (cos) {
-            connections.remove(conn.channel);
+            connections.remove(conn);
             cos.addAndGet(-1);
             cos.notify();
         }
-        this.connectionPool.put(conn);
+        //this.connectionPool.put(conn);
         logger.info("current connections count:%s", cos.get());
     }
 
     //启动服务
     @Override
     public void run() {
+
+        init2();
 
         try {
             AsynchronousChannelGroup group = AsynchronousChannelGroup.withThreadPool(Executors.newCachedThreadPool());

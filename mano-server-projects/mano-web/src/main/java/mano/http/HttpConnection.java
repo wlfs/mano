@@ -140,7 +140,7 @@ class HttpConnection {
         if (context != null) {
             context.completed = true;
         }
-        service.onClosed(this);
+        //service.onClosed(this);
     }
 
     private void flush() {

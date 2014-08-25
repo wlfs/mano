@@ -7,6 +7,7 @@
  */
 package mano.util.logging;
 
+import java.io.Serializable;
 import mano.util.ProviderMapper;
 
 /**
@@ -49,9 +50,59 @@ public final class Logger {
             OFF = 1000;
 
     private LogProvider provider;
-    
+
+    public static final class Level implements Serializable {
+
+        /**
+         * 关闭所有日志。
+         */
+        public static Level OFF = new Level("OFF", -1);
+        /**
+         * 表示所有级别的日志均会输出。
+         */
+        public static Level ALL = new Level("ALL", 0);
+        /**
+         * 表示一个提示信息。
+         */
+        public static Level INFO = new Level("INFO", 100);
+        /**
+         * 表示一个调试信息。
+         */
+        public static Level DEBUG = new Level("DEBUG", 200);
+        /**
+         * 表示一个跟踪信息。
+         */
+        public static Level TRACE = new Level("TRACE", 300);
+        /**
+         * 表示一个警告信息。
+         */
+        public static Level WARNING = new Level("WARNING", 400);
+        /**
+         * 表示一错误信息。
+         */
+        public static Level ERROR = new Level("ERROR", 500);
+        /**
+         * 致命错误。
+         */
+        public static Level FATAL = new Level("FATAL", 600);
+
+        public final int value;
+        public final String name;
+
+        public Level(String levelName, int levelValue) {
+            name = levelName;
+            value = levelValue;
+        }
+
+        @Override
+        public String toString() {
+            return this.name + "[" + this.value + "]";
+        }
+
+    }
+
     private static Logger defLogger;
-    
+
     public static Logger getDefault() {
         if (defLogger == null) {
             defLogger = new Logger(new CansoleLogProvider());

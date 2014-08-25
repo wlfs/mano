@@ -120,6 +120,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public Map<String, String> query() {
+        System.out.println("QSSSSS:"+(this.url().getQuery() == null ? "" : this.url().getQuery().trim()));
         if (_query == null) {
             _query = new NameValueCollection<>();
 
@@ -128,6 +129,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
                 if (query.startsWith("?")) {
                     query = query.substring(1);
                 }
+                System.out.println("QSSS2:"+(query));
                 String key;
                 String value;
                 int index;

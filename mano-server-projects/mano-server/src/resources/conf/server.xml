@@ -14,16 +14,9 @@
         <services>
             <service name="cache.service" class="mano.caching.CacheService"></service>
             <service name="http.service" class="mano.http.HttpService">
-                <params>
-                    <param name="config:file">~/conf/server.xml</param>
-                    <param name="connection:http:address">0.0.0.0:9999</param>
-                    <param name="connection:http:disabled">false</param>
-
-                    <param name="connection:https:address">0.0.0.0:443</param>
-                    <param name="connection:https:disabled">true</param>
-                    <param name="connection:https:ssl">true</param>
-                    <param name="connection:https:ssl_cert">path</param>
-                </params>
+                <property name="config:file">~/conf/server.xml</property>
+                <property name="connection:http:address">0.0.0.0:9999</property>
+                <property name="connection:http:disabled">false</property>
             </service>
         </services>
     </server>

@@ -8,10 +8,15 @@ package com.diosay.mano.server;
  * 
  */
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Map;
+import java.util.logging.Level;
 import mano.ContextClassLoader;
 import mano.service.Service;
 import mano.service.ServiceContainer;
+import mano.service.ServiceManager;
 import mano.service.ServiceProvider;
 import mano.util.NameValueCollection;
 import mano.util.ThreadPool;
@@ -29,7 +34,12 @@ import org.w3c.dom.NodeList;
  *
  * @author jun
  */
-public class Bootstrap implements ServiceContainer, ServiceProvider {
+public class Bootstrap extends ContextClassLoader implements ServiceContainer, ServiceProvider {
+
+    public Bootstrap() {
+        super(new Logger(new CansoleLogProvider()));
+        ServiceManager.getInstance().setLoader(this);
+    }
 
     @Override
     public Service getService(String serviceName) {
@@ -56,14 +66,35 @@ public class Bootstrap implements ServiceContainer, ServiceProvider {
     ContextClassLoader loader;
     NameValueCollection<Service> services;
     String bootstrapPath;
+    private void error(String project,Class<?> category,String content,String time,String source){
+        AccessController.doPrivileged(new PrivilegedAction(){
 
+            @Override
+            public Object run() {
+                System.loadLibrary(bootstrapPath);
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+        });
+    }
     private void init() throws FileNotFoundException {
         bootstrapPath = Utility.combinePath(System.getProperty("user.dir")).getParent().toString();
-        loader = new ContextClassLoader(new Logger(new CansoleLogProvider()));
+        loader = this;
         loader.register(Utility.combinePath(bootstrapPath, "lib").toString());
-        
-        
+        //Logger.error(catagory,content,level,date,Source)
+        //log(project,category,topic,time,content,source)
+        //err(class,content)
+        //fiter(entry)
+        /*this.error("project", Bootstrap.class, bootstrapPath, "time", "source");
+        try {
+            java.util.logging.Handler hd=new java.util.logging.ConsoleHandler();
+            
+            hd.setLevel(Level.CONFIG);
+            
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }*/
     }
+    
 
 //    private void loadParams(XmlHelper helper, Node node, Map<String, String> result) throws XmlException {
 //        NodeList nodes = helper.selectNodes(node, "params/param");
@@ -170,25 +201,22 @@ public class Bootstrap implements ServiceContainer, ServiceProvider {
 
                 String name = attrs.getNamedItem("name").getNodeValue();
                 String type = attrs.getNamedItem("class").getNodeValue();
-
-                params.clear();
-                params.put("path:bootstrap", this.bootstrapPath);
-                params.put("path:config", configPath);
-                params.put("service:name", name);
-                nodes2 = helper.selectNodes(nodes.item(i), "params/param");
-                if (nodes2 != null) {
-                    for (int j = 0; j < nodes2.getLength(); j++) {
-                        attrs = nodes2.item(j).getAttributes();
-                        try {
-                            params.put(attrs.getNamedItem("name").getNodeValue().trim(), nodes2.item(j).getTextContent().trim());
-                        } catch (Exception ignored) {
-                        }
-                    }
-                }
-
                 try {
                     Service service = (Service) loader.newInstance(type);
-                    service.init(this, params);
+                    service.getProperties().setProperty("path:bootstrap", this.bootstrapPath);
+                    service.getProperties().setProperty("path:config", configPath);
+                    service.getProperties().setProperty("service_name", name);
+                    nodes2 = helper.selectNodes(nodes.item(i), "property");
+                    if (nodes2 != null) {
+                        for (int j = 0; j < nodes2.getLength(); j++) {
+                            attrs = nodes2.item(j).getAttributes();
+                            try {
+                                service.getProperties().setProperty(attrs.getNamedItem("name").getNodeValue().trim(), nodes2.item(j).getTextContent().trim());
+                            } catch (Exception ignored) {
+                                loader.getLogger().warn(null, ignored);
+                            }
+                        }
+                    }
                     services.put(name, service);
                 } catch (Exception ignored) {
                     loader.getLogger().error(null, ignored);
@@ -206,8 +234,8 @@ public class Bootstrap implements ServiceContainer, ServiceProvider {
             }
         }
     }
-    
-    public void start(String...args){
+
+    public void start(String... args) {
         Logger.getDefault().info("Starting server.");
         try {
             init();
@@ -230,8 +258,8 @@ public class Bootstrap implements ServiceContainer, ServiceProvider {
             System.exit(0);
         }
     }
-    
-    public void stop(){
+
+    public void stop() {
         Logger.getDefault().info("server has stopped.");
         System.exit(0);
     }
