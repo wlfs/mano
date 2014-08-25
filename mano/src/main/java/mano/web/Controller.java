@@ -67,7 +67,13 @@ public abstract class Controller {
     }
 
     public Object session(String name) {
-        return getContext().getSession().get(name);
+        try {
+            return getContext().getSession().get(name);
+        } catch (Throwable ex) {
+            mano.util.logging.Logger.getDefault().debug(null, ex);
+        }
+        return null;
+        
     }
 
     public void cookie(String name, Object value) {

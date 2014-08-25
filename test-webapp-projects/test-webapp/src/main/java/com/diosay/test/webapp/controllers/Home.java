@@ -22,7 +22,8 @@ public class Home extends Controller {
     
     @UrlMapping
     public void index(){
-        this.getLogger().info("=====:index");
+        this.getLogger().info("=====:index:"+this.session("uid"));
+        
         view();
     }
     
@@ -41,6 +42,9 @@ public class Home extends Controller {
             this.getLogger().error(null, ex);
             return;
         }
+        
+        this.session("sun", this.form("username"));
+        
         Session session =SessionHelper.getSessionFactory(url).openSession();
         Product entity = new Product();
         Transaction trans = session.beginTransaction();

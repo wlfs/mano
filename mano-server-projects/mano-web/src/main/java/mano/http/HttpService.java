@@ -515,6 +515,7 @@ public class HttpService extends Service implements ServiceProvider {
                 if (svc != null && svc instanceof ServiceProvider) {
                     CacheProvider provider = ((ServiceProvider) svc).getService(CacheProvider.class);//TODO: 指定实例服务
                     if (provider != null) {
+                        logger.error("====."+provider);
                         String sid = req.getCookie().get(HttpSession.COOKIE_KEY);
                         context.session = HttpSession.getSession(sid, provider);
 
@@ -523,7 +524,11 @@ public class HttpService extends Service implements ServiceProvider {
                             context.response.getCookie().set(HttpSession.COOKIE_KEY, context.session.getSessionId(), 0, "/", null, false, false);
 
                         }
+                    }else{
+                        logger.error("CacheProvider not found.");
                     }
+                }else{
+                    logger.error("cache.service not found.");
                 }
                 context.response.setHeader("Server", context.getServer().getVersion());
                 //context.response.setHeader("X-Powered-By", "mano/1.1,java/1.8");
@@ -624,6 +629,7 @@ public class HttpService extends Service implements ServiceProvider {
         } catch (IOException e) {
             logger.error("mano.http.HttpService.run", e);
         }
+        this.onStart();
     }
 
     @Override

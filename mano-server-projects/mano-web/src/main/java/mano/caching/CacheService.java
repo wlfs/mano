@@ -23,7 +23,7 @@ public class CacheService extends Service implements ServiceProvider {
     @Override
     public void init(ServiceContainer container, Map<String, String> params) {
         super.init(container, params);
-        provider = new HashCacheProvider();
+        
     }
 
     @Override
@@ -33,7 +33,8 @@ public class CacheService extends Service implements ServiceProvider {
 
     @Override
     public void run() {
-
+        provider = new HashCacheProvider();
+        this.onStart();
     }
 
     @Override
