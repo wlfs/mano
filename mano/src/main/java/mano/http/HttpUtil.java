@@ -11,7 +11,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.Map;
-import mano.util.logging.Logger;
+import mano.util.logging.LoggerOLD;
 
 /**
  *
@@ -42,9 +42,16 @@ public class HttpUtil {
             }
 
             if (key != null && !"".equals(key)) {
+
                 try {
-                    result.put(key, URLDecoder.decode(value, "UTF-8"));//TODO:编码识别GB18030
+                    value = URLDecoder.decode(value, "UTF-8");//TODO:编码识别GB18030
                 } catch (UnsupportedEncodingException ex) {
+                    
+                }
+                if (result.containsKey(key)) {
+                    String old = result.get(key);
+                    result.put(key, (old == null ? "" : old) + "," + (value == null ? "" : value));
+                } else {
                     result.put(key, value);
                 }
             }

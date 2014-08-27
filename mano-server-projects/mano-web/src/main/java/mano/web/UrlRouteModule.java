@@ -34,6 +34,7 @@ import mano.http.HttpContext;
 import mano.http.HttpModule;
 import mano.util.Utility;
 import java.net.URLDecoder;
+import java.util.Properties;
 
 /**
  *
@@ -221,6 +222,7 @@ public class UrlRouteModule implements HttpModule {
 
             //查找方法，获取第2部分URL 和签名参数
             for (Method method : clazz.getDeclaredMethods()) {
+                map.clear();
                 mapping = method.getAnnotation(UrlMapping.class);
                 if (mapping == null) {
                     continue;
@@ -283,7 +285,7 @@ public class UrlRouteModule implements HttpModule {
                             continue;
                         }
                         if (map.containsKey(i)) {
-                            map.put(i, map.get(i) + "," + pname);
+                            //map.put(i, map.get(i) + "," + pname);
                         } else {
                             map.put(i, pname);
                         }
@@ -328,7 +330,7 @@ public class UrlRouteModule implements HttpModule {
     WebApplication app;
 
     @Override
-    public void init(WebApplication app, Map<String, String> params) {
+    public void init(WebApplication app, Properties params) {
         this.app = app;
         JarScanner js = new JarScanner();
         if (java.lang.MANO_WEB_MACRO.DEBUG) {
@@ -344,20 +346,13 @@ public class UrlRouteModule implements HttpModule {
             }
         }
 
-        for (Entry<String, String> item : params.entrySet()) {
-            if ("viewengine".equalsIgnoreCase(item.getKey())) {
-                try {
-                    viewEngine = (ViewEngine) app.getLoader().newInstance(item.getValue());
-                } catch (InstantiationException ex) {
-                    app.getLogger().error(null, ex);
-                } catch (ClassNotFoundException ex) {
-                    app.getLogger().error(null, ex);
-                }
-                viewEngine.setTempdir(Utility.combinePath(app.getApplicationPath(), "APP-DATA/tmp").toString());
-                viewEngine.setViewdir(Utility.combinePath(app.getApplicationPath(), "views").toString());
-            }
+        try {
+            viewEngine = (ViewEngine) app.getLoader().newInstance(params.getProperty("view.engine"));
+            viewEngine.setTempdir(Utility.combinePath(app.getApplicationPath(), "APP-DATA/tmp").toString());
+            viewEngine.setViewdir(Utility.combinePath(app.getApplicationPath(), "views").toString());
+        } catch (Throwable ex) {
+            app.getLogger().error(ex);
         }
-
     }
 
     @Override
@@ -381,7 +376,7 @@ public class UrlRouteModule implements HttpModule {
                 continue;
             }
             matcher = test.matcher(tryPath);
-            app.getLogger().debug("matching: patten:%s , url:%s ", route.patten, tryPath);
+            app.getLogger().debug("matching: patten:" + route.patten + " url:" + tryPath);
             if (matcher.matches()) {
 
                 Object[] params = new Object[route.call.getParameterCount()];
@@ -393,7 +388,7 @@ public class UrlRouteModule implements HttpModule {
                 } catch (Throwable ex) {
                     continue;
                 }
-                
+
                 try {
                     rs = new RequestService(context);
                     rs.setController(route.controller);
@@ -404,6 +399,7 @@ public class UrlRouteModule implements HttpModule {
                     m.setAccessible(true);
                     m.invoke(obj, rs);//
                     route.call.invoke(obj, params);
+                    break;
                 } catch (InvocationTargetException ex) {
                     if (ex.getTargetException() != null) {
                         context.getResponse().write(ex.getTargetException().getClass() + ":" + ex.getTargetException().getMessage());
@@ -413,12 +409,10 @@ public class UrlRouteModule implements HttpModule {
                         app.getLogger().debug("call route handler", ex);
                     }
                     return true;
-                    //Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
                 } catch (Throwable ex) {
                     context.getResponse().write(ex.getClass() + ":" + ex.getMessage());
                     app.getLogger().debug("call route handler", ex);
                     return true;
-                    //Logger.getLogger(UrlRouteModule.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
 

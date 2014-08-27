@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <server basedir="~/server">
-        <dependency>
-            <!--<path value="E:\repositories\java\mano\mano.server\dist"/>
-            <path value="E:\repositories\java\mano\mano.server\dist\lib\mano.wrt.jar"/>-->
-        </dependency>
-        <logger provider="class:mano.util.logging.CansoleLogProvider">
-            <params>
-                <param name="log:level">ALL</param>
-                <param name="log:file">~/logs/{yyyyMMdd}.log</param>
-            </params>
+    <server>
+        <settings>
+            <property name="server.dir">E:\repositories\java\mano\mano-server-projects\mano-server\target\build</property>
+            <property name="logging.path">{server.dir}/logs</property>
+        </settings>
+        <!--<dependency>
+            <path value="lib"/>
+        </dependency>-->
+        <logger name="root">
+            <handler class="mano.util.logging.ConsoleHandler"/>
         </logger>
         <services>
             <service name="cache.service" class="mano.caching.CacheService"></service>
             <service name="http.service" class="mano.http.HttpService">
-                <property name="config:file">~/conf/server.xml</property>
+                <property name="config_file">{server.dir}/conf/server.xml</property>
+                <property name="buffer_size">4k</property>
+                <property name="max_connections">1024</property>
+                <property name="webapp.config_path">{server.dir}/conf/apps</property>
                 <property name="connection:http:address">0.0.0.0:9999</property>
                 <property name="connection:http:disabled">false</property>
             </service>
@@ -27,75 +30,42 @@
     xmlns:app="http://mano.diosay.com/schemes/web-application.xsd"-->
         
 	
-    <http.service bufferBucketSize="128" transferBufferSize="512b" minBufferSize="4k" maxBufferSize="64k" maxConnections="1000" threadPoolSize="1000">
+    <http.service>
         <machine>
-            <dependency>
-                
-            </dependency>
             <request disabledEntityBody="false" maxEntityBodySize="4m" controller="home" action="index">
                 <document>
                     <add value="index.html"/>
                 </document>
                 <ignored>
-                    <add value="/logs/"/>
-                    <add value="/config/"/>
-                    <add value="/bin/"/>
-                    <add value="/data/"/>
+                    <add value="/WEB-INF/"/>
+                    <add value="/views/"/>
                 </ignored>
             </request>
             
             <modules>
                 <add name="static_file_module" class="mano.web.StaticFileModule">
-                    <params>
-                        <!--http://www.w3school.com.cn/media/media_mimeref.asp-->
-                        <param name="ext:html">text/html</param>
-                        <param name="ext:htm">text/html</param>
-                        <param name="ext:text">text/plain</param>
-                        <param name="ext:css">text/css</param>
-                        <param name="ext:js">application/x-javascript</param>
-                        <param name="ext:jpg">image/jpeg</param>
-                        <param name="ext:png">image/png</param>
-                        <param name="ext:mp4">video/mp4</param>
-                        <param name="ext:rar">application/octet-stream</param>
-                        <param name="fcgi:server1:pass">192.168.1.10:9000</param>
-                        <param name="fcgi:server1:weight">1</param>
-                    </params>
+                    <!--http://www.w3school.com.cn/media/media_mimeref.asp-->
+                    <property name="ext:html">text/html</property>
+                    <property name="ext:htm">text/html</property>
+                    <property name="ext:text">text/plain</property>
+                    <property name="ext:css">text/css</property>
+                    <property name="ext:js">application/x-javascript</property>
+                    <property name="ext:jpg">image/jpeg</property>
+                    <property name="ext:png">image/png</property>
+                    <property name="ext:mp4">video/mp4</property>
+                    <property name="ext:rar">application/octet-stream</property>
                 </add>
+                
                 <add name="url_route_module" class="mano.web.UrlRouteModule">
-                    <params>
-                        <param name="viewengine">mano.otpl.OtplViewEngine</param>
-                    </params>
+                    <property name="def.mime">text/html</property>
+                    <property name="def.encoding">utf-8</property>
+                    <property name="inf.dir">{app.dir}/WEB-INF</property>
+                    <property name="tmp.dir">{inf.dir}/tmp</property>
+                    <property name="view.dir">{app.dir}/views</property>
+                    <property name="view.engine">mano.otpl.OtplViewEngine</property>
                 </add>
             </modules>
         </machine>
-        
-        <web.applications>
-            <!--<include path="xxx/web.xml"/>-->
-            <application name="default application" host="*:9999" rootdir="~/wwwroot" vpath="/" class="mano.web.WebApplication">
-                <startup>
-                    <path value="~/bin/ext/drivers"/>
-                    <path value="~/bin/ext/hibernate-release-4.3.5.Final/required"/>
-                    <path value="~/bin/ext/hibernate-release-4.3.5.Final/jpa"/>
-                    <path value="~/bin/ext/json"/>
-                    <add>
-                        <path uri=""/>
-                        <export name="mano.util.json.JsonConvert" class="mano.json.GsonConverter"/>
-                    </add>
-                </startup>
-                <settings>
-                    <add key="db:driver:myconn" value="mysql"/>
-                    <add key="db:strings:myconn" value="jdbc:mysql://localhost/myDB"/>
-                </settings>
-                <!--日志：server/service/app-->
-                <logging enable="true" logger="service:logging.service|class:gggg.hhh.xx">
-                    <level value="100" path="~/log/{yyyyMMdd}.log"/>;
-                </logging>
-                <!--<request.routing autoDectect="true" domain="admin" controller="home" action="index">
-                    <controller name="packge.jar" domain=""/>
-                </request.routing>-->
-            </application>
-        </web.applications>
-        
     </http.service>
     
     

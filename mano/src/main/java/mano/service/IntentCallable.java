@@ -5,16 +5,15 @@
  * See more http://mano.diosay.com/
  * 
  */
-package mano.http;
-
-import java.util.Properties;
+package mano.service;
 
 /**
  *
  * @author jun <jun@diosay.com>
  */
-public class HttpModuleSettings{
-        public String name;
-        public String type;
-        public Properties settings=new Properties();
-    }
+public interface IntentCallable {
+
+    void onCompleted(Intent intent);
+
+    void onFailed(Intent intent, Throwable ex);
+}

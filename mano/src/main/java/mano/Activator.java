@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import mano.util.Utility;
-import mano.util.logging.Logger;
+import mano.util.logging.LoggerOLD;
 
 /**
  *

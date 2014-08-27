@@ -31,5 +31,7 @@
         class="org.hibernate.test.legacy.Simple"
         region="Simple"
         usage="read-write"/>-->
+        
     </session-factory>
+    
 </hibernate-configuration>

@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import mano.DateTime;
 import mano.InvalidOperationException;
 import mano.http.HttpContext;
@@ -31,13 +32,13 @@ public class StaticFileModule implements HttpModule {
     private NameValueCollection<String> mappings;
 
     @Override
-    public void init(WebApplication app, Map<String, String> params) {
+    public void init(WebApplication app, Properties params) {
         mappings = new NameValueCollection<>();
-        for (Entry<String, String> entry : params.entrySet()) {
-            String[] arr = entry.getKey().toLowerCase().split(":");
+        for (Entry<Object, Object> entry : params.entrySet()) {
+            String[] arr = entry.getKey().toString().toLowerCase().split(":");
             if (arr.length > 1) {
                 if ("ext".equals(arr[0])) {
-                    mappings.put(arr[1], entry.getValue());
+                    mappings.put(arr[1], entry.getValue().toString());
                 }
             }
         }

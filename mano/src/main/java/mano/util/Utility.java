@@ -12,12 +12,68 @@ import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import mano.Mano;
 
 /**
  *
  * @author jun <jun@diosay.com>
  */
 public class Utility {
+
+    static final Pattern pattern = Pattern.compile("\\{\\s*([\\w\\-_\\.]+)\\s*\\}");
+
+    public static void prepareProperties(final Properties props) {
+        if (props == null) {
+            throw new IllegalArgumentException("props");
+        }
+        props.entrySet().stream().forEach(item -> {
+            if (item.getValue() == null) {
+                return;
+            }
+            String key = item.getKey().toString();
+            props.put(item.getKey(), getAndReplaceMarkup(key, props));
+        });
+    }
+
+    public static String getAndReplaceMarkup(String key, Map... maps) {
+        if (maps == null || maps.length == 0) {
+            throw new IllegalArgumentException("maps");
+        }
+        Object value = null;
+        for (Map map : maps) {
+            if (map.containsKey(key)) {
+                value = map.get(key);
+                break;
+            }
+        }
+
+        if (value == null) {
+            throw new IllegalArgumentException("undefined：" + key);
+        }
+        StringBuilder sb = new StringBuilder(value.toString());
+
+        Matcher matcher = pattern.matcher(sb);
+        while (matcher.find()) {
+            String name = matcher.group(1);
+            if (key.equals(name)) {
+                throw new IllegalArgumentException("not call salf：" + key);
+            }
+            sb.replace(matcher.start(), matcher.end(), getAndReplaceMarkup(name, maps));
+        }
+        return sb.toString();
+    }
+
+    public static void main(String[] args) {
+        Mano.getProperties().setProperty("server.dir", "{user.dir}/..");
+        Mano.getProperties().setProperty("server.config", "{server.dir}/conf/server.xml");
+        Utility.prepareProperties(Mano.getProperties());
+
+        int x = 0;
+    }
 
     public static Path combinePath(String first, String... more) {
         if (more.length != 0) {

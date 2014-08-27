@@ -9,9 +9,7 @@ package mano;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
@@ -20,7 +18,7 @@ import java.util.Set;
 import mano.util.logging.Logger;
 
 /**
- *
+ * 上下文类加载器
  * @author jun <jun@diosay.com>
  */
 public class ContextClassLoader extends URLClassLoader {
@@ -33,8 +31,7 @@ public class ContextClassLoader extends URLClassLoader {
     }
 
     public ContextClassLoader(Logger logger, URL[] urls) {
-        //sun.misc.Launcher.getLauncher().getClassLoader()
-        this(logger, urls,ContextClassLoader.class.getClassLoader()==null? ClassLoader.getSystemClassLoader():ContextClassLoader.class.getClassLoader());
+        this(logger, urls, ContextClassLoader.class.getClassLoader() == null ? ClassLoader.getSystemClassLoader() : ContextClassLoader.class.getClassLoader());
     }
 
     public ContextClassLoader(Logger logger) {
@@ -63,8 +60,8 @@ public class ContextClassLoader extends URLClassLoader {
             if (!file.exists()) {
                 try {
                     set.add(new URI(path).toURL());
-                } catch (Exception ex) {
-                    logger.warn("[ContextClassLoader.register]Invalid path(URL ERROR 1) :%s", path);
+                } catch (Throwable ex) {
+                    logger.warn("[ContextClassLoader.register]Invalid path(URL ERROR 1) :" + path);
                 }
                 continue;
             }
@@ -72,11 +69,11 @@ public class ContextClassLoader extends URLClassLoader {
             if (!file.isDirectory()) {
                 name = file.getName().toLowerCase();
                 if (!(name.endsWith(".jar") || name.endsWith(".class"))) {
-                    logger.warn("[ContextClassLoader.register]Invalid path(Is not a valid JAR file or Class file):%s", path);
+                    logger.warn("[ContextClassLoader.register]Invalid path(Is not a valid JAR file or Class file):" + path);
                 }
                 try {
                     set.add(file.toURI().toURL());
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     logger.warn("[ContextClassLoader.register]Invalid path(URL ERROR 2)", ex);
                 }
             } else {
@@ -85,7 +82,7 @@ public class ContextClassLoader extends URLClassLoader {
                     if (f.isFile() && (fname.endsWith("jar") || fname.endsWith(".class"))) {
                         try {
                             set.add(f.toURI().toURL());
-                        } catch (Exception ex) {
+                        } catch (Throwable ex) {
                             logger.warn("[ContextClassLoader.register]Invalid path(URL ERROR 3)", ex);
                         }
                     }
@@ -101,7 +98,7 @@ public class ContextClassLoader extends URLClassLoader {
         }
     }
 
-    public <T> T newInstance(Class<T> clazz, Object... args) throws InstantiationException {
+    public <T> T newInstance(Class<T> clazz, Object... args) throws ReflectiveOperationException {
         int length = args == null ? 0 : args.length;
         if (length > 0) {
             try {
@@ -114,9 +111,13 @@ public class ContextClassLoader extends URLClassLoader {
                     return (T) ctor.newInstance(args);
                 }
             } catch (java.lang.reflect.InvocationTargetException e) {
-                logger.debug(null, e.getTargetException());
-            } catch (Exception e) {
-                logger.debug(null, e);
+                if (MANO_MACRO.DEBUG) {
+                    logger.debug(e.getTargetException());
+                }
+            } catch (Throwable e) {
+                if (MANO_MACRO.DEBUG) {
+                    logger.debug(e);
+                }
             }
         }
 
@@ -125,34 +126,32 @@ public class ContextClassLoader extends URLClassLoader {
                 try {
                     return (T) ctor.newInstance(args);
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    logger.debug(null, e.getTargetException());
-                    throw new InstantiationException(e.getMessage());
-                } catch (Exception ex) {
-                    logger.debug(null, ex);
-                    throw new InstantiationException(ex.getMessage());
+                    throw new ReflectiveOperationException(e.getTargetException());
+                } catch (Throwable ex) {
+                    throw new ReflectiveOperationException(ex);
                 }
             }
         }
-        throw new InstantiationException();
+        throw new ReflectiveOperationException();
     }
 
-    public Object newInstance(String clazz, Object... args) throws InstantiationException, ClassNotFoundException {
-        return this.newInstance(this.loadClass(clazz,true), args);
+    public Object newInstance(String clazz, Object... args) throws ReflectiveOperationException {
+        return this.newInstance(this.loadClass(clazz, true), args);
     }
-    private HashMap<String,Class<?>> mappings=new HashMap<>();
-    public void registerExport(String name,String clazz) throws ClassNotFoundException{
+    private HashMap<String, Class<?>> mappings = new HashMap<>();
+
+    public void registerExport(String name, String clazz) throws ClassNotFoundException {
         mappings.put(name, this.loadClass(clazz, true));
     }
-    
-    public Object getExport(String name, Object... args) throws InstantiationException{
-        if(mappings.containsKey(name)){
-            return newInstance(mappings.get(name),args); 
+
+    public Object getExport(String name, Object... args) throws ReflectiveOperationException {
+        if (mappings.containsKey(name)) {
+            return newInstance(mappings.get(name), args);
         }
         return null;
     }
-    
-     public <T> T getExport(Class<T> clazz,String name, Object... args) throws InstantiationException{
-        return (T)getExport(name,args);
+
+    public <T> T getExport(Class<T> clazz, String name, Object... args) throws ReflectiveOperationException {
+        return (T) getExport(name, args);
     }
-    
 }

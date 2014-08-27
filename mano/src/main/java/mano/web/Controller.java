@@ -15,7 +15,7 @@ import mano.http.HttpResponse;
 import mano.util.json.JsonConvert;
 import mano.util.json.JsonConverter;
 import mano.util.logging.CansoleLogProvider;
-import mano.util.logging.Logger;
+import mano.util.logging.LoggerOLD;
 
 /**
  *
@@ -70,7 +70,7 @@ public abstract class Controller {
         try {
             return getContext().getSession().get(name);
         } catch (Throwable ex) {
-            mano.util.logging.Logger.getDefault().debug(null, ex);
+            mano.util.logging.LoggerOLD.getDefault().debug(null, ex);
         }
         return null;
         
@@ -139,8 +139,8 @@ public abstract class Controller {
         return getContext().getApplication();
     }
 
-    public Logger getLogger() {
-        return new Logger(new CansoleLogProvider());
+    public LoggerOLD getLogger() {
+        return new LoggerOLD(new CansoleLogProvider());
     }
 
     public ContextClassLoader getLoader() {

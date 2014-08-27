@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<application name="default application" host="*:9999" vpath="/" class="com.diosay.test.webapp.App">
+<application name="default_application" host="*:9999" vpath="/" class="com.diosay.test.webapp.App">
     <settings>
-        <add key="db:driver:myconn" value="mysql"/>
-        <add key="db:strings:myconn" value="jdbc:mysql://localhost/myDB"/>
+        <property name="hibernate.cfg">WEB-INF/hibernate.cfg.xml</property>
     </settings>
     <!--TODO:日志-->
-    <logging enable="true" logger="service:logging.service|class:logger.providerImpl">
-        <level value="100" path="~/log/{yyyyMMdd}.log"/>;
-    </logging>
-    <!--其它配置 请见文档-->
+    <!--其它配置请见文档-->
 </application>

@@ -59,7 +59,7 @@ public abstract class Service implements Runnable {
             intent.get("request");
             
         }else{
-            intent.get("request");intent.onCompleted();
+            intent.get("request");
         }
     }
 

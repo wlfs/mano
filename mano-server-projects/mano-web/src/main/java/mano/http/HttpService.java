@@ -9,6 +9,7 @@ package mano.http;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import mano.ContextClassLoader;
 import mano.DateTime;
+import mano.Mano;
 import mano.caching.CacheProvider;
 import mano.http.HttpConnection.FlushHandler;
 import mano.http.HttpConnection.ReceivedCompletionHandler;
@@ -46,7 +48,6 @@ import mano.util.CachedObjectPool;
 import mano.util.NameValueCollection;
 import mano.util.Pool;
 import mano.util.Utility;
-import mano.util.logging.CansoleLogProvider;
 import mano.util.logging.Logger;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
@@ -75,7 +76,7 @@ public class HttpService extends Service implements ServiceProvider {
     private String bootstrapPath;
     private String configPath;
     private ContextClassLoader loader;
-    private Logger logger = new Logger(new CansoleLogProvider());
+    private Logger logger;
     private String name;
     Pool<ReceivedCompletionHandler> receivedCompletionHandlerPool;
     Pool<SentCompletionHandler> sentCompletionHandlerPool;
@@ -84,6 +85,7 @@ public class HttpService extends Service implements ServiceProvider {
     Pool<HttpConnection> connectionPool;
     Pool<FlushHandler> flushHandlerPool;
     Pool<LoadExactDataHandler> loadExactDataHandlerPool;
+    Pool<mano.net.ByteArrayBuffer> bufferPool;
 
     public HttpService() {
         //_factory = new Pool<>(() -> new HttpTask(this));
@@ -138,6 +140,7 @@ public class HttpService extends Service implements ServiceProvider {
         super.stop(); //To change body of generated methods, choose Tools | Templates.
     }
 
+    @Deprecated
     @Override
     public void init(ServiceContainer container, Map<String, String> params) {
         super.init(container, null);
@@ -153,12 +156,13 @@ public class HttpService extends Service implements ServiceProvider {
         }
 
         try {
-            this.loadConfigs();
-        } catch (XmlException ex) {
+            this.configure();
+        } catch (Exception ex) {
             logger.error("", ex);
         }
     }
 
+    @Deprecated
     private void init2() {
         loader = ServiceManager.getInstance().getLoader();
         logger = loader.getLogger();
@@ -168,9 +172,17 @@ public class HttpService extends Service implements ServiceProvider {
         });
 
         try {
-            this.loadConfigs();
-        } catch (XmlException ex) {
+            this.configure();
+        } catch (Exception ex) {
             logger.error("", ex);
+        }
+    }
+
+    private void error(Throwable ex) {
+        if (logger != null) {
+            logger.error(ex);
+        } else {
+            Logger.getLog().error(ex);
         }
     }
 
@@ -197,18 +209,6 @@ public class HttpService extends Service implements ServiceProvider {
                     info.disabled = "true".equalsIgnoreCase(value == null ? "" : value.toString().trim());
                 }
             }
-        } else if (arr.length == 2) {
-            if ("path".equalsIgnoreCase(arr[0])) {
-                if ("bootstrap".equalsIgnoreCase(arr[1])) {
-                    this.bootstrapPath = value.toString();
-                } else if ("config".equalsIgnoreCase(arr[1])) {
-                    this.configPath = value.toString();
-                }
-            } else if ("service".equalsIgnoreCase(arr[0])) {
-                if ("name".equalsIgnoreCase(arr[1])) {
-                    this.name = value.toString();
-                }
-            }
         }
     }
 
@@ -226,87 +226,124 @@ public class HttpService extends Service implements ServiceProvider {
         return result;
     }
     int maxConnections;
+    int bufferSize = 1024 * 4;
     WebApplicationStartupInfo machine;
 
-    private void loadConfigs() throws XmlException {
+    private void configure() throws Exception {
 
-        XmlHelper helper = XmlHelper.load(this.configPath);
-        Node node, attr, root = helper.selectNode("/configuration/http.service");
-        String s;
-        NamedNodeMap attrs = root.getAttributes();
+        loader = ServiceManager.getInstance().getLoader();
+        logger = loader.getLogger();
 
-        int bufferBucketSize = Integer.parseUnsignedInt(attrs.getNamedItem("bufferBucketSize").getNodeValue().trim());
-        if (bufferBucketSize <= 0) {
-            bufferBucketSize = 64;
+        //预处理配置值。
+        if (this.getProperties().containsKey("config_file")) {
+            this.getProperties().setProperty("config_file", Utility.getAndReplaceMarkup("config_file", this.getProperties(), Mano.getProperties(), System.getProperties()));
+        } else {
+            this.getProperties().setProperty("config_file", Utility.combinePath(Mano.getProperty("server.dir"), "conf/server.xml").toString());
         }
 
-        _workBufferPool = new BufferPool((int) parseSize(attrs.getNamedItem("minBufferSize").getNodeValue().trim()), bufferBucketSize);
-        _tempBufferPool = new BufferPool((int) parseSize(attrs.getNamedItem("maxBufferSize").getNodeValue().trim()), bufferBucketSize);
-        _ioBufferPool = new ByteBufferPool((int) parseSize(attrs.getNamedItem("transferBufferSize").getNodeValue().trim()), bufferBucketSize);
-        maxConnections = Integer.parseUnsignedInt(attrs.getNamedItem("maxConnections").getNodeValue().trim());
+        if (this.getProperties().containsKey("webapp.config_path")) {
+            this.getProperties().setProperty("webapp.config_path", Utility.getAndReplaceMarkup("webapp.config_path", this.getProperties(), Mano.getProperties(), System.getProperties()));
+        } else {
+            this.getProperties().setProperty("webapp.config_path", Utility.combinePath(Mano.getProperty("server.dir"), "conf/apps").toString());
+        }
+        if (this.getProperties().containsKey("service_name")) {
+            this.name = this.getProperty("service_name");
+        } else {
+            this.name = this.getClass().getName();
+        }
 
+        String s;
+
+        //缓冲区池
+        s = this.getProperty("buffer_size");
+        if (s != null && !"".equals(s.trim())) {
+            bufferSize = (int) parseSize(s.trim());
+        }
+        bufferPool = new Pool<>(() -> {
+            return new ByteArrayBuffer(bufferSize);
+        }, 8);
+
+        //最大连接数
+        s = this.getProperty("max_connections");
+        if (s != null && !"".equals(s.trim())) {
+            maxConnections = Integer.parseUnsignedInt(s.trim());
+        }
+
+        //服务配置
+        s = this.getProperty("config_file");
+        File cfile = new File(s);
+        if (!cfile.exists() || !cfile.isFile()) {
+            throw new FileNotFoundException("Configuration file not found:" + s);
+        }
+
+        XmlHelper helper = XmlHelper.load(cfile.toString());
+        Node node, attr, root = helper.selectNode("/configuration/http.service");
+
+        //获取机器配置
         machine = new WebApplicationStartupInfo();
         this.parseApplication(machine, helper, helper.selectNode(root, "machine"));
 
-        //applications
+        //web应用的配置文件地址
+        s = this.getProperty("webapp.config_path");
+        cfile = new File(s);
         appInfos = new NameValueCollection<>();
-
-        File appdefs = new File(Utility.combinePath(this.bootstrapPath, "/conf/apps").toUri());
-        if (appdefs.exists() && appdefs.isDirectory()) {
-            appdefs.listFiles((File child) -> {
+        if (cfile.exists() && cfile.isDirectory()) {
+            cfile.listFiles((File child) -> {
                 if (child.getName().toLowerCase().endsWith(".xml")) {
                     try {
-                        loadApp(child.toString());
-                    } catch (Exception ex) {
-                        getLogger().error("", ex);
+                        loadApp(child.toString(), false);
+                    } catch (Throwable ex) {
+                        getLogger().error(ex);
                     }
                 }
                 return false;
             });
         }
 
-        /*NodeList nodes = helper.selectNodes(root, "web.applications/application");
-         for (int i = 0; i < nodes.getLength(); i++) {
-         node = nodes.item(i);
-         WebApplicationStartupInfo info = new WebApplicationStartupInfo();
+        //mano服务器测试专用
+        s = Mano.getProperty("manoserver.testing.test_webapp.config_file");
+        try {
+            if (s != null && !"".equals(s)) {
+                loadApp(s, true);
+            }
+        } catch (Throwable ex) {
+            //
+        }
 
-         info.service = this;
-         info.modules.putAll(machine.modules);
-         info.settings.putAll(machine.settings);
-         info.exports.putAll(machine.exports);
-         info.documents.addAll(machine.documents);
-         info.ignoreds.addAll(machine.ignoreds);
-         info.action = machine.action;
-         info.controller = machine.controller;
-         info.disabledEntityBody = machine.disabledEntityBody;
-         info.maxEntityBodySize = machine.maxEntityBodySize;
+        //解析连接地址
+        this.getProperties().entrySet().stream().forEach(item -> {
+            parseParam(item.getKey().toString(), item.getValue());
+        });
 
-         info.serverPath = this.bootstrapPath;
-         this.parseApplication(info, helper, nodes.item(i));
-
-         appInfos.put(info.host, info);
-         }*/
-        //include
     }
 
-    private void loadApp(String filename) throws XmlException {
-        XmlHelper helper = XmlHelper.load(filename);
-        Node root = helper.selectNode("/application");
-
-        if (root == null) {
-            return;
-        }
-        NamedNodeMap attrs = root.getAttributes();
-        if (attrs == null) {
-            return;
-        }
-        Node attr = attrs.getNamedItem("path");
-        if (attr == null) {
-            throw new XmlException("miss attribute [path]");
+    private void loadApp(String filename, boolean setable) throws XmlException {
+        XmlHelper helper = null;
+        Node root = null;
+        NamedNodeMap attrs = null;
+        Node attr = null;
+        if (!setable) {
+            helper = XmlHelper.load(filename);
+            root = helper.selectNode("/application");
+            if (root == null) {
+                return;
+            }
+            attrs = root.getAttributes();
+            if (attrs == null) {
+                return;
+            }
+            attr = attrs.getNamedItem("path");
+            if (attr == null) {
+                throw new XmlException("miss attribute [path]");
+            }
         }
 
         WebApplicationStartupInfo info = new WebApplicationStartupInfo();
-        info.rootdir = attr.getNodeValue();
+        if (!setable) {
+            info.rootdir = attr.getNodeValue();
+        } else {
+            info.rootdir = filename;
+        }
         info.service = this;
         info.serviceLoader = this.getLoader();
         info.modules.putAll(machine.modules);
@@ -318,24 +355,37 @@ public class HttpService extends Service implements ServiceProvider {
         info.controller = machine.controller;
         info.disabledEntityBody = machine.disabledEntityBody;
         info.maxEntityBodySize = machine.maxEntityBodySize;
-        info.serverPath = this.bootstrapPath;
+        info.serverPath = this.getProperty("server.dir");
+        String s;
+        if (!setable) {
+            NodeList nodes = helper.selectNodes(root, "dependency");
+            if (nodes != null) {
+                Node node;
 
-        NodeList nodes = helper.selectNodes(root, "dependency");
-        if (nodes != null) {
-            Node node;
-            String s;
-            for (int i = 0; i < nodes.getLength(); i++) {
-                node = nodes.item(i);
-                attr = node.getAttributes().getNamedItem("path");
-                if (attr != null) {
-                    s = attr.getNodeValue();
-                    if (s != null && !"".equals(s) && !info.dependencyExt.contains(s)) {
-                        info.dependencyExt.add(s);
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    node = nodes.item(i);
+                    attr = node.getAttributes().getNamedItem("path");
+                    if (attr != null) {
+                        s = attr.getNodeValue();
+                        if (s != null && !"".equals(s) && !info.dependencyExt.contains(s)) {
+                            info.dependencyExt.add(s);
 
+                        }
                     }
                 }
             }
+        } else {
+            //mano服务器测试专用
+            s = Mano.getProperty("manoserver.testing.test_webapp.ext_dependency");
+            try {
+                if (s != null && !"".equals(s)) {
+                    info.dependencyExt.add(s);
+                }
+            } catch (Throwable ex) {
+                //
+            }
         }
+
         File file = new File(info.rootdir + "/WEB-INF/mano.web.xml");
         if (!file.exists() || !file.getName().toLowerCase().endsWith(".xml")) {
             throw new XmlException("Nonreadable file:" + file);
@@ -371,6 +421,15 @@ public class HttpService extends Service implements ServiceProvider {
         attr = attrs.getNamedItem("vpath");
         if (attr != null) {
             info.path = attr.getNodeValue();
+        }
+
+        //配置
+        nodes = helper.selectNodes(root, "settings/property");
+        if (nodes != null) {
+            for (int i = 0; i < nodes.getLength(); i++) {
+                attrs = nodes.item(i).getAttributes();
+                info.settings.setProperty(attrs.getNamedItem("name").getNodeValue(), nodes.item(i).getTextContent());
+            }
         }
 
         //request
@@ -449,40 +508,32 @@ public class HttpService extends Service implements ServiceProvider {
                 try {
                     info.exports.put(attrs.getNamedItem("name").getNodeValue().trim(), attrs.getNamedItem("class").getNodeValue().trim());
                 } catch (Exception ex) {
-                    Logger.getDefault().warn(null, ex);
+                    this.error(ex);
                 }
             }
         }
 
         //模块
         HttpModuleSettings module;
-        nodes = helper.selectNodes(root, "modules/add");
+        nodes = helper.selectNodes(root, "modules/add");//remove clear
         for (int i = 0; i < nodes.getLength(); i++) {
             attrs = nodes.item(i).getAttributes();
             attr = attrs.getNamedItem("name");
             s = (attr == null) ? "" : attr.getNodeValue().trim();
             if ("".equals(s) || info.modules.containsKey(s)) {
-                logger.warn("module exists:%s", s);
+                logger.warn("module exists:" + s);
                 continue;
             }
 
             module = new HttpModuleSettings();
             module.name = s;
             module.type = attrs.getNamedItem("class").getNodeValue();
-            module.params = new NameValueCollection<>();
-            NodeList params = helper.selectNodes(nodes.item(i), "params/param");
+            NodeList params = helper.selectNodes(nodes.item(i), "property");
             for (int j = 0; j < params.getLength(); j++) {
                 attrs = params.item(j).getAttributes();
-                module.params.put(attrs.getNamedItem("name").getNodeValue(), params.item(j).getTextContent());
+                module.settings.setProperty(attrs.getNamedItem("name").getNodeValue(), params.item(j).getTextContent());
             }
             info.modules.put(s, module);
-        }
-
-        //配置
-        nodes = helper.selectNodes(root, "settings/add");
-        for (int i = 0; i < nodes.getLength(); i++) {
-            attrs = nodes.item(i).getAttributes();
-            info.settings.put(attrs.getNamedItem("key").getNodeValue(), attrs.getNamedItem("value").getNodeValue());
         }
     }
 
@@ -515,7 +566,7 @@ public class HttpService extends Service implements ServiceProvider {
                 if (svc != null && svc instanceof ServiceProvider) {
                     CacheProvider provider = ((ServiceProvider) svc).getService(CacheProvider.class);//TODO: 指定实例服务
                     if (provider != null) {
-                        logger.error("====."+provider);
+                        logger.error("====." + provider);
                         String sid = req.getCookie().get(HttpSession.COOKIE_KEY);
                         context.session = HttpSession.getSession(sid, provider);
 
@@ -524,16 +575,16 @@ public class HttpService extends Service implements ServiceProvider {
                             context.response.getCookie().set(HttpSession.COOKIE_KEY, context.session.getSessionId(), 0, "/", null, false, false);
 
                         }
-                    }else{
+                    } else {
                         logger.error("CacheProvider not found.");
                     }
-                }else{
+                } else {
                     logger.error("cache.service not found.");
                 }
                 context.response.setHeader("Server", context.getServer().getVersion());
                 //context.response.setHeader("X-Powered-By", "mano/1.1,java/1.8");
 
-                app.init(context);
+                app.processRequest(context);
                 return true;
             }
         }
@@ -550,14 +601,13 @@ public class HttpService extends Service implements ServiceProvider {
         connections.add(conn);
         cos.addAndGet(1);
 
-        
         conn.open(chan, new ByteArrayBuffer(1024 * 4));
 
         //HttpConnection conn = new HttpConnection();
         conn.service = this;
         //conn.buffer = this.workBufferPool().get();
         //conn.open(chan);
-        logger.info("current connections count:%s", cos.get());
+        logger.info("current connections count:" + cos.get());
     }
 
     void onClosed(HttpChannel conn) {
@@ -567,14 +617,20 @@ public class HttpService extends Service implements ServiceProvider {
             cos.notify();
         }
         //this.connectionPool.put(conn);
-        logger.info("current connections count:%s", cos.get());
+        logger.info("current connections count:" + cos.get());
     }
 
     //启动服务
     @Override
     public void run() {
 
-        init2();
+        try {
+            configure();
+        } catch (Exception ex) {
+            this.error(ex);
+            this.stop();
+            return;
+        }
 
         try {
             AsynchronousChannelGroup group = AsynchronousChannelGroup.withThreadPool(Executors.newCachedThreadPool());
@@ -596,13 +652,11 @@ public class HttpService extends Service implements ServiceProvider {
                         synchronized (cos) {
                             while (cos.get() >= 100) {
                                 try {
-                                    //System.out.println("xxxxxxxxxxxx");
                                     cos.wait(1000 * 5);
                                 } catch (InterruptedException ex) {
                                     failed(ex, server);
                                 }
                             }
-                            //System.out.println("yyyyyyyyyyyyyyyyyy");
                             server.accept(server, this);
                         }
                     }
@@ -620,11 +674,7 @@ public class HttpService extends Service implements ServiceProvider {
 
                 });
 
-                //conn = new AioConnection(info.address, Executors.newCachedThreadPool());
-                //conn.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-                //conn.bind(100);
-                //conn.accept(_factory.get());
-                logger.info("listening for:%s", info.address.toString());
+                logger.info("listening for:" + info.address.toString());
             }
         } catch (IOException e) {
             logger.error("mano.http.HttpService.run", e);
@@ -657,7 +707,7 @@ public class HttpService extends Service implements ServiceProvider {
         public boolean disabled = false;
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void mainss(String[] args) throws Exception {
         AsynchronousChannelGroup group = AsynchronousChannelGroup.withThreadPool(Executors.newCachedThreadPool());
         AsynchronousServerSocketChannel chan = AsynchronousServerSocketChannel.open(group);
         chan.bind(new InetSocketAddress(9999), 1024);

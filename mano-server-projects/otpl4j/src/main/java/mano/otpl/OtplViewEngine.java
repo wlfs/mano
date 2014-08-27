@@ -22,7 +22,7 @@ import mano.otpl.emit.Interpreter;
 import mano.otpl.emit.OpCode;
 import mano.util.LinkedMap;
 import mano.util.Utility;
-import mano.util.logging.Logger;
+import mano.util.logging.LoggerOLD;
 import mano.web.RequestService;
 import mano.web.ViewEngine;
 
@@ -34,7 +34,7 @@ public class OtplViewEngine extends ViewEngine {
     
     EmitParser parser=new EmitParser();
     Interpreter interpreter = new Interpreter();
-    Logger logger = Logger.getDefault();//TODO:
+    LoggerOLD logger = LoggerOLD.getDefault();//TODO:
 
     @Override
     public String compile(String tempdir, String tplName) {

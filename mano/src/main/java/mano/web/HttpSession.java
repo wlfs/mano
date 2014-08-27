@@ -56,7 +56,7 @@ public class HttpSession {
         try {
             return this.provider.get(sid, name);
         } catch (Throwable ex) {
-            mano.util.logging.Logger.getDefault().debug(null, ex);
+            mano.util.logging.LoggerOLD.getDefault().debug(null, ex);
         }
         return null;
     }

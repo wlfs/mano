@@ -12,7 +12,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import mano.Resettable;
-import mano.util.logging.Logger;
+import mano.util.logging.LoggerOLD;
 
 /**
  * 表示一个用于交互操作的字节缓冲区。

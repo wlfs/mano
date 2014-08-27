@@ -10,8 +10,10 @@ package mano.web;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Properties;
 import java.util.Set;
 import mano.ContextClassLoader;
+import mano.PropertyContext;
 import mano.http.HttpContext;
 import mano.http.HttpException;
 import mano.http.HttpModule;
@@ -20,16 +22,17 @@ import mano.util.Utility;
 import mano.util.logging.Logger;
 
 /**
- *
+ * 定义 Web 应用程序中的所有应用程序对象通用的方法、属性和事件。
  * @author jun <jun@diosay.com>
  */
-public class WebApplication {
+public class WebApplication extends PropertyContext {
 
+    
     private Set<HttpModule> modules;
     private ContextClassLoader loader;
     private WebApplicationStartupInfo startupInfo;
-    private HashMap<String, Object> items = new HashMap<>();
-
+    private final HashMap<String, Object> items = new HashMap<>();
+    
     public ContextClassLoader getLoader() {
         return loader;
     }
@@ -38,39 +41,31 @@ public class WebApplication {
         return loader.getLogger();
     }
 
-    private void init(WebApplicationStartupInfo info, ContextClassLoader activator) {
+    /**
+     * 初始化应用程序。
+     * @param info
+     * @param l 
+     */
+    final void init(WebApplicationStartupInfo info, ContextClassLoader l) {
         startupInfo = info;
-        loader = activator;
-
+        loader = l;
+        this.setProperties(new Properties());
         modules = new LinkedHashSet<>();
         for (mano.http.HttpModuleSettings settings : info.modules.values()) {
             try {
                 HttpModule mod = (HttpModule) loader.newInstance(settings.type);
                 if (mod != null) {
-                    mod.init(this, settings.params);
+                    mod.init(this, settings.settings);
                     modules.add(mod);
                 }
-            } catch (InstantiationException | ClassNotFoundException ex) {
-                loader.getLogger().error("WebApplication.init(modules)", ex);
+            } catch (Throwable ex) {
+                getLogger().warn("Failed to initialize the HTTP module:", ex);
             }
         }
-
-        //loader.
-        //host base
-        //config
-        //path
-        //root
-        //index
-        //mappings
-        //post limits
-        //auth
-        //logger
-        //loader
-        //items
-        //session state
+        this.onInit();
     }
 
-    private void destory() {
+    final void destory() {
         onDestory();
         startupInfo.app = null;
         if (modules != null) {
@@ -87,19 +82,6 @@ public class WebApplication {
     }
 
     /**
-     * 获取用户配置参数。
-     *
-     * @param name 配置名称。
-     * @return 值。
-     */
-    public final String getSettingValue(String name) {
-        if (this.startupInfo.settings.containsKey(name)) {
-            return this.startupInfo.settings.get(name);
-        }
-        return null;
-    }
-
-    /**
      * 获取应用程序根目录。
      *
      * @return
@@ -108,29 +90,40 @@ public class WebApplication {
         return this.startupInfo.getServerInstance().getBaseDirectory();
     }
 
-    public Object get(String name) {
+    /**
+     * 获取一个用于在应用程序各 HttpContext 之间交互的对象。
+     * @param name
+     * @return 
+     */
+    public final Object get(String name) {
         if (items.containsKey(name)) {
             return items.get(name);
         }
         return null;
     }
 
-    public void set(String name, Object value) {
+    /**
+     * 设置一个用于在应用程序各 HttpContext 之间交互的对象。
+     * @param name
+     * @param value 
+     */
+    public final void set(String name, Object value) {
         items.put(name, value);
     }
 
     /**
-     * 任何实现HTTP Service 都须要调用该方法。 基础代码，除非你清楚的知道你要做什么，否则不建议在用户代码中调用该方法。
+     * 任何实现HTTP Service 都须要调用该方法。 
+     * <p>基础代码，除非你清楚的知道你要做什么，否则不建议在用户代码中调用该方法。
      *
      * @param context
      */
-    public void init(HttpContext context) {
+    public void processRequest(HttpContext context) {
         boolean processed = false;
 
         ArrayList<String> paths = new ArrayList<>();
         String path = context.getRequest().url().getPath();
         paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path).toString());
-        if (true) {//path.endsWith("/")
+        if (true) {
             for (String s : startupInfo.documents) {
                 paths.add(Utility.combinePath(context.getServer().getVirtualPath(), path, s).toString());
             }
@@ -162,7 +155,7 @@ public class WebApplication {
         }
 
     }
-
+    protected void onInit(){}
     protected void onError(HttpContext context, Throwable t) {
         HttpException ex;
         if (t instanceof HttpException) {

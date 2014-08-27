@@ -15,6 +15,7 @@ import mano.DateTime;
  *
  * @author jun <jun@diosay.com>
  */
+@Deprecated
 public class CansoleLogProvider implements LogProvider {
 
     public CansoleLogProvider(){}

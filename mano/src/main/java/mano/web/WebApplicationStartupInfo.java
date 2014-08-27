@@ -13,9 +13,8 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.logging.Level;
+import java.util.Properties;
 import java.util.regex.Pattern;
-import mano.Activator;
 import mano.ContextClassLoader;
 import mano.http.HttpModuleSettings;
 import mano.http.HttpServer;
@@ -23,7 +22,6 @@ import mano.service.Service;
 import mano.service.ServiceProvider;
 import mano.util.NameValueCollection;
 import mano.util.Utility;
-import mano.util.logging.LogProvider;
 import mano.util.logging.Logger;
 
 /**
@@ -44,7 +42,7 @@ public class WebApplicationStartupInfo {
     public ArrayList<String> dependency = new ArrayList<>();
     public ArrayList<String> dependencyExt = new ArrayList<>();
     public NameValueCollection<String> exports = new NameValueCollection<>();
-    public NameValueCollection<String> settings = new NameValueCollection<>();
+    public Properties settings = new Properties();
     public ArrayList<String> ignoreds = new ArrayList<>();
     public String serverPath;
     public WebApplication app;
@@ -64,6 +62,10 @@ public class WebApplicationStartupInfo {
         return hostreg.matcher(hostname).matches();
     }
 
+    /**
+     * 获取应用实例
+     * @return 
+     */
     public synchronized WebApplication getInstance() {
         if (app != null) {
             return app;
@@ -111,18 +113,6 @@ public class WebApplicationStartupInfo {
                     loader.getLogger().warn(null, ex);
                 }
             });
-            //TODO: 重写日志组件
-
-            /*try {
-             loader.register(getServerInstance().mapPath("bin"));
-             } catch (FileNotFoundException ex) {
-             //ignored
-             }
-             try {
-             loader.register(getServerInstance().mapPath("bin/lib"));
-             } catch (FileNotFoundException ex) {
-             //ignored
-             }*/
             app = (WebApplication) loader.newInstance(this.type);
             if (app != null) {
                 Method init = WebApplication.class.getDeclaredMethod("init", WebApplicationStartupInfo.class, ContextClassLoader.class);
@@ -131,9 +121,9 @@ public class WebApplicationStartupInfo {
                 return app;
             }
         } catch (InvocationTargetException ex) {
-            Logger.getDefault().error("WebApplicationStartupInfo.getInstance", ex.getTargetException() == null ? ex : ex.getTargetException());
-        } catch (Exception ex) {
-            Logger.getDefault().error("WebApplicationStartupInfo.getInstance", ex);
+            Logger.getLog().error("WebApplicationStartupInfo.getInstance", ex.getTargetException() == null ? ex : ex.getTargetException());
+        } catch (Throwable ex) {
+            Logger.getLog().error("WebApplicationStartupInfo.getInstance", ex);
         }
         return null;
     }

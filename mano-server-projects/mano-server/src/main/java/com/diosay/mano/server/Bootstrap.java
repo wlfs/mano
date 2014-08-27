@@ -7,22 +7,19 @@ package com.diosay.mano.server;
  * See more http://mano.diosay.com/
  * 
  */
+import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.Map;
-import java.util.logging.Level;
+import java.util.NoSuchElementException;
 import mano.ContextClassLoader;
+import mano.Mano;
 import mano.service.Service;
-import mano.service.ServiceContainer;
 import mano.service.ServiceManager;
 import mano.service.ServiceProvider;
 import mano.util.NameValueCollection;
 import mano.util.ThreadPool;
 import mano.util.Utility;
-import mano.util.logging.CansoleLogProvider;
 import mano.util.logging.LogProvider;
+import mano.util.logging.LogService;
 import mano.util.logging.Logger;
 import mano.util.xml.XmlException;
 import mano.util.xml.XmlHelper;
@@ -31,82 +28,59 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
+ * 实现 Mano 服务容器的启动程序。
  *
  * @author jun
  */
-public class Bootstrap extends ContextClassLoader implements ServiceContainer, ServiceProvider {
-
+public class Bootstrap extends ContextClassLoader implements ServiceProvider {
+    @java.lang.Deprecated
+    Logger logger;
+    @java.lang.Deprecated
+    ContextClassLoader loader;
+    
+    NameValueCollection<Service> services;
+    @java.lang.Deprecated
+    String bootstrapPath;
+    
     public Bootstrap() {
-        super(new Logger(new CansoleLogProvider()));
+        super(new Logger());
         ServiceManager.getInstance().setLoader(this);
+        ServiceManager.getInstance().regisiter(new LogService());
     }
-
-    @Override
-    public Service getService(String serviceName) {
-        if (serviceName != null && services.containsKey(serviceName)) {
-            return services.get(serviceName);
-        }
-        return null;
-    }
-
+    
     @Override
     public <T> T getService(Class<T> serviceType) {
         if (serviceType == null) {
             return null;
         }
         if (Logger.class.getName().equals(serviceType.getName())) {
-            return (T) logger;
+            return (T) this.getLogger();
         } else if (ContextClassLoader.class.getName().equals(serviceType.getName()) || ClassLoader.class.getName().equals(serviceType.getName())) {
-            return (T) loader;
+            return (T) this;
         }
         return null;
     }
 
-    Logger logger;
-    ContextClassLoader loader;
-    NameValueCollection<Service> services;
-    String bootstrapPath;
-    private void error(String project,Class<?> category,String content,String time,String source){
-        AccessController.doPrivileged(new PrivilegedAction(){
-
-            @Override
-            public Object run() {
-                System.loadLibrary(bootstrapPath);
-                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-            }
-        });
+    /**
+     * 打印错误
+     *
+     * @param message
+     * @param ex
+     */
+    private void error(String message, Throwable ex) {
+        System.out.println(message);
+        if (ex != null) {
+            ex.printStackTrace(System.out);
+        }
     }
+    
+    @java.lang.Deprecated
     private void init() throws FileNotFoundException {
         bootstrapPath = Utility.combinePath(System.getProperty("user.dir")).getParent().toString();
         loader = this;
         loader.register(Utility.combinePath(bootstrapPath, "lib").toString());
-        //Logger.error(catagory,content,level,date,Source)
-        //log(project,category,topic,time,content,source)
-        //err(class,content)
-        //fiter(entry)
-        /*this.error("project", Bootstrap.class, bootstrapPath, "time", "source");
-        try {
-            java.util.logging.Handler hd=new java.util.logging.ConsoleHandler();
-            
-            hd.setLevel(Level.CONFIG);
-            
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }*/
     }
-    
 
-//    private void loadParams(XmlHelper helper, Node node, Map<String, String> result) throws XmlException {
-//        NodeList nodes = helper.selectNodes(node, "params/param");
-//        NamedNodeMap attrs;
-//        if (nodes.getLength() <= 0) {
-//            return;
-//        }
-//        for (int i = 0; i < nodes.getLength(); i++) {
-//            attrs = nodes.item(i).getAttributes();
-//            
-//        }
-//    }
     /**
      * 载入配置文件
      *
@@ -114,9 +88,22 @@ public class Bootstrap extends ContextClassLoader implements ServiceContainer, S
      * @throws InstantiationException
      * @throws ClassNotFoundException
      */
-    private void loadConfig() throws XmlException, InstantiationException, ClassNotFoundException {
-        String configPath = Utility.combinePath(bootstrapPath, "conf/server.xml").toString();
-        XmlHelper helper = XmlHelper.load(configPath);
+    private void configure(String configPath, String serverDir) throws Exception {
+        Mano.setProperty("user.dir", System.getProperty("user.dir"));
+        
+        File cfile;
+        if (configPath == null) {
+            cfile = Utility.combinePath(Utility.combinePath(Mano.getProperty("user.dir")).getParent().toString(), "conf/server.xml").toFile();
+        } else {
+            cfile = new File(configPath);
+        }
+        
+        if (!cfile.exists() || !cfile.isFile()) {
+            throw new FileNotFoundException("Configuration file not found.");
+        }
+        
+        XmlHelper helper = XmlHelper.load(cfile.toString());
+        
         NamedNodeMap attrs;
         NodeList nodes;
         Node node, root;
@@ -124,17 +111,38 @@ public class Bootstrap extends ContextClassLoader implements ServiceContainer, S
         NameValueCollection<String> params = new NameValueCollection<>();
         root = helper.selectNode("/configuration/server");
         if (root == null) {
-            return;
+            throw new NoSuchElementException("Miss [server] Node.");
+        }
+        Mano.getProperties().setProperty("server.config", cfile.toString());
+
+        //加载属性
+        nodes = helper.selectNodes(root, "settings/property");
+        if (nodes != null) {
+            for (int i = 0; i < nodes.getLength(); i++) {
+                attrs = nodes.item(i).getAttributes();
+                Mano.getProperties().setProperty(attrs.getNamedItem("name").getNodeValue(), nodes.item(i).getTextContent());
+            }
         }
 
-        //服务依赖
+        //预处理配置值。
+        if (serverDir != null) {
+            Mano.setProperty("server.dir", serverDir);
+        } else {
+            if (Mano.getProperties().containsKey("server.dir")) {
+                Mano.setProperty("server.dir", Utility.getAndReplaceMarkup("server.dir", Mano.getProperties(), System.getProperties()));
+            } else {
+                Mano.setProperty("server.dir", Utility.combinePath(Mano.getProperty("user.dir")).getParent().toString());
+            }
+        }
+
+        //加载依赖
+        register(Utility.combinePath(Mano.getProperty("server.dir"), "lib").toString());
+        
         nodes = helper.selectNodes(root, "dependency/path");
-        //ArrayList<String> list=new ArrayList();
         String[] arr;
         if (nodes != null) {
             for (int i = 0; i < nodes.getLength(); i++) {
                 attrs = nodes.item(i).getAttributes();
-
                 try {
                     s = attrs.getNamedItem("value").getNodeValue().trim();
                     if (s.startsWith("~/") || s.startsWith("~\\")) {
@@ -142,22 +150,22 @@ public class Bootstrap extends ContextClassLoader implements ServiceContainer, S
                     } else if (s.startsWith("/") || s.startsWith("\\")) {
                         s = Utility.combinePath(bootstrapPath, s.substring(1)).toString();
                     }
-                    loader.register(s);
-                } catch (Exception ex) {
-                    Logger.getDefault().warn(null, ex);
+                    this.register(s);
+                } catch (Throwable ex) {
+                    error(null, ex);
                 }
             }
         }
 
-        //获取依赖导出
+        //导出依赖
         nodes = helper.selectNodes(root, "dependency/export");
         if (nodes != null) {
             for (int i = 0; i < nodes.getLength(); i++) {
                 attrs = nodes.item(i).getAttributes();
                 try {
-                    loader.registerExport(attrs.getNamedItem("name").getNodeValue().trim(), attrs.getNamedItem("class").getNodeValue().trim());
-                } catch (Exception ex) {
-                    Logger.getDefault().warn(null, ex);
+                    this.registerExport(attrs.getNamedItem("name").getNodeValue().trim(), attrs.getNamedItem("class").getNodeValue().trim());
+                } catch (Throwable ex) {
+                    error(null, ex);
                 }
             }
         }
@@ -168,43 +176,41 @@ public class Bootstrap extends ContextClassLoader implements ServiceContainer, S
             LogProvider provider = null;
             attrs = node.getAttributes();
             try {
-                s = attrs.getNamedItem("provider").getNodeValue().trim();
-                arr = Utility.split(s, ":", true);
-                if (arr[0].equals("class")) {
-                    provider = (LogProvider) loader.newInstance(arr[1]);
+                s = attrs.getNamedItem("name").getNodeValue().trim();
+                if (s == null || "".equals(s.trim())) {
+                    throw new NoSuchElementException("Miss Logger [name] Attribute.");
+                } else {
+                    this.setLogger(Logger.getLog());
                 }
-            } catch (Exception ignored) {
-            }
-
-            if (provider != null) {
-                params.clear();
-                nodes = helper.selectNodes(node, "params/param");
-                for (int i = 0; i < nodes.getLength(); i++) {
-                    attrs = nodes.item(i).getAttributes();
-                    try {
-                        params.put(attrs.getNamedItem("name").getNodeValue().trim(), nodes.item(i).getTextContent().trim());
-                    } catch (Exception ignored) {
+                
+                nodes = helper.selectNodes(node, "handler");
+                if (nodes != null) {
+                    for (int i = 0; i < nodes.getLength(); i++) {
+                        try {
+                            s = nodes.item(i).getAttributes().getNamedItem("class").getNodeValue();
+                            this.newInstance(s);
+                        } catch (Throwable ex) {
+                            this.error(null, ex);
+                        }
                     }
                 }
-                provider.init(params);
-                loader.setLogger(new Logger(provider));
+                
+            } catch (Exception ignored) {
             }
         }
 
-        //实例化服务
+        //加载服务
         services = new NameValueCollection<>();
         NodeList nodes2;
         nodes = helper.selectNodes(root, "services/service");
         if (nodes != null) {
             for (int i = 0; i < nodes.getLength(); i++) {
                 attrs = nodes.item(i).getAttributes();
-
+                
                 String name = attrs.getNamedItem("name").getNodeValue();
                 String type = attrs.getNamedItem("class").getNodeValue();
                 try {
-                    Service service = (Service) loader.newInstance(type);
-                    service.getProperties().setProperty("path:bootstrap", this.bootstrapPath);
-                    service.getProperties().setProperty("path:config", configPath);
+                    Service service = (Service) this.newInstance(type);
                     service.getProperties().setProperty("service_name", name);
                     nodes2 = helper.selectNodes(nodes.item(i), "property");
                     if (nodes2 != null) {
@@ -213,60 +219,73 @@ public class Bootstrap extends ContextClassLoader implements ServiceContainer, S
                             try {
                                 service.getProperties().setProperty(attrs.getNamedItem("name").getNodeValue().trim(), nodes2.item(j).getTextContent().trim());
                             } catch (Exception ignored) {
-                                loader.getLogger().warn(null, ignored);
+                                this.error(null, ignored);
                             }
                         }
                     }
                     services.put(name, service);
                 } catch (Exception ignored) {
-                    loader.getLogger().error(null, ignored);
+                    this.error(null, ignored);
                 }
             }
         }
     }
-
+    
     private void loop() {
         while (true) {
             try {
                 Thread.sleep(1000 * 1000);
             } catch (InterruptedException e) {
-                Logger.getDefault().warn("", e);
+                this.error(null, e);
+                break;
             }
         }
     }
-
-    public void start(String... args) {
-        Logger.getDefault().info("Starting server.");
+    
+    public void start(String configFile, String serverDir) {
+        
+        this.getLogger().info("Starting server.");
         try {
-            init();
-
-            loadConfig();
-
+            
+            configure(configFile, serverDir);
+            
             if (services.isEmpty()) {
-                Logger.getDefault().fatal("No service running.");
+                this.getLogger().fatal("No service running.");
                 System.exit(0);
             } else {
                 services.values().stream().forEach((service) -> {
                     ThreadPool.execute(service);
                 });
-                Logger.getDefault().info("server is started.");
-                loop();
+                this.getLogger().info("server is started.");
+                
             }
-
+            
         } catch (Exception ex) {
-            Logger.getDefault().fatal("", ex);
+            this.getLogger().fatal(ex);
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ex1) {
+            }
             System.exit(0);
         }
     }
-
+    
     public void stop() {
-        Logger.getDefault().info("server has stopped.");
+        this.getLogger().info("server has stopped.");
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ex1) {
+        }
         System.exit(0);
     }
-
+    
     public static void main(String[] args) {
         Bootstrap server = new Bootstrap();
-        server.start(args);
+        //Mano.setProperty("manoserver.testing.test_webapp.config_file", "E:\\repositories\\java\\mano\\test-webapp-projects\\test-webapp\\src\\main\\webapp");
+        //Mano.setProperty("manoserver.testing.test_webapp.ext_dependency", "E:\\repositories\\java\\mano\\test-webapp-projects\\test-webapp\\target\\build\\lib");
+        //server.start("E:\\repositories\\java\\mano\\mano-server-projects\\mano-server\\src\\resources\\conf\\server.xml", "E:\\repositories\\java\\mano\\mano-server-projects\\mano-server\\target\\build");
+        server.start(null, null);
+        server.loop();
     }
-
+    
 }

@@ -8,6 +8,7 @@
 package mano.http;
 
 import java.util.Map;
+import java.util.Properties;
 import mano.Disposable;
 import mano.web.WebApplication;
 
@@ -20,7 +21,7 @@ public interface HttpModule extends Disposable {
      * 使用指定参数初始化。
      * @param params 初始化模块需要的参数集合。
      */
-    void init(WebApplication app,Map<String,String> params);
+    void init(WebApplication app,Properties params);
     
     /**
      * 筛选并处理 HTTP 请求。

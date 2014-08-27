@@ -120,7 +120,6 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public Map<String, String> query() {
-        System.out.println("QSSSSS:"+(this.url().getQuery() == null ? "" : this.url().getQuery().trim()));
         if (_query == null) {
             _query = new NameValueCollection<>();
 
@@ -129,7 +128,6 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
                 if (query.startsWith("?")) {
                     query = query.substring(1);
                 }
-                System.out.println("QSSS2:"+(query));
                 String key;
                 String value;
                 int index;
@@ -144,7 +142,12 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
                     }
 
                     if (key != null && !"".equals(key)) {
-                        _query.put(key, value);
+                        if (_query.containsKey(key)) {
+                            String old = _query.get(key);
+                            _query.put(key, (old == null ? "" : old) + "," + (value == null ? "" : value));
+                        } else {
+                            _query.put(key, value);
+                        }
                     }
                 }
             }
@@ -159,7 +162,13 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
         if (_form == null) {
             _form = new NameValueCollection<>();
         }
-        _form.put(name, value);
+
+        if (_form.containsKey(name)) {
+            String old = _form.get(name);
+            _form.put(name, (old == null ? "" : old) + "," + (value == null ? "" : value));
+        } else {
+            _form.put(name, value);
+        }
     }
 
     @Override
@@ -198,10 +207,8 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
                 handler.remaining = this.getContentLength();
                 if (this.isFormUrlEncoded) {
                     handler.handler = new HttpFormUrlEncodedParser();
-                    System.out.println("=====here1:" + remaining);
                 } else {
                     handler.handler = new HttpMultipartParser(this._boundary);
-                    System.out.println("=====here2:" + remaining);
                 }
 
                 handler.onRead(connection, 1, connection.getBuffer(), this);
@@ -238,7 +245,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public boolean isConnected() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -266,7 +273,7 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
     @Override
     public void Abort() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -310,10 +317,8 @@ class HttpRequestImpl extends HttpRequest implements HttpRequestAppender {
 
             int pos = buffer.position();
             try {
-                System.out.println("=====ccccc");
                 handler.onRead(buffer, request);
-            } catch (Exception ex) {
-                System.out.println("=====eeeee" + ex.getMessage());
+            } catch (Throwable ex) {
                 this.onFailed(channel, ex);
                 return;
             }

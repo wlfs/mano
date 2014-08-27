@@ -54,4 +54,14 @@ public class Home extends Controller {
         session.close();
         this.text(entity.getId()+"");
     }
+    @mano.web.UrlMapping("/foo/{id}")
+    void foo(@mano.web.PathParam("id") Object id){
+        this.text("foo:"+id);
+    }
+    @mano.web.UrlMapping("/bar/{id}")
+    void bar(@mano.web.PathParam("id") Object id){
+        this.text("bar:"+id);
+    }
+    
+    
 }
