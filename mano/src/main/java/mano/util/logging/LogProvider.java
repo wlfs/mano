@@ -14,6 +14,7 @@ import java.util.Map;
  * 
  * @author jun <jun@diosay.com>
  */
+@Deprecated
 public interface LogProvider {
     void init(Map<String,String> params);
     boolean isEnabled(int level);

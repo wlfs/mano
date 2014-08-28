@@ -53,10 +53,4 @@ public class ServiceManager implements ServiceContainer {
         }
         instance.services.put(service.getServiceName(), service);
     }
-
-    public static Intent send(String serviceName, String action) {
-        Intent intent = new Intent(serviceName, action);
-        return intent;
-    }
-
 }

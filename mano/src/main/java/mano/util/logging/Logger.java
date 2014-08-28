@@ -19,8 +19,16 @@ import mano.service.Intent;
 public class Logger {
 
     private Action<Intent> action;
+    private String name;
+    protected Logger(){
+        this.action=(intent)->{
+            if (intent.isFaulted()) {
+                intent.getException().printStackTrace(System.out);
+            }
+        };
+    }
     
-    public Logger(){
+    Logger(String name){
         this.action=(intent)->{
             if (intent.isFaulted()) {
                 intent.getException().printStackTrace(System.out);
@@ -29,15 +37,24 @@ public class Logger {
     }
     
     public static Logger getLog(){
-        return new Logger();
+        return LogService.getLogger("root");
+    }
+    
+    public static Logger getLog(String name) throws Throwable{
+        return LogService.getLogger(name);
+    }
+    
+    public Logger getParent(){
+        return null;
     }
     
     public String getName() {
-        return "root";
+        return name;
     }
     
     protected LogEntry create(Thread thread, StackTraceElement[] traces) {
         LogEntry entry = new LogEntry();
+        entry.setLogger(this);
         entry.setTime(DateTime.now());
         entry.setLoggerName(this.getName());
         entry.setThreadId(thread.getId());

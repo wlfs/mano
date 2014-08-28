@@ -52,6 +52,7 @@ public class LogEntry {
     private DateTime time;
 
     private transient boolean needToInferCaller;
+    private transient Logger logger;
     private StackTraceElement trace;
 
     /**
@@ -225,5 +226,12 @@ public class LogEntry {
     
     public void setTime(DateTime time){
         this.time=time;
+    }
+    
+    public Logger getLogger(){
+        return logger;
+    }
+    public void setLogger(Logger log){
+        logger=log;
     }
 }

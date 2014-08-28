@@ -9,7 +9,6 @@ package mano.service;
 
 import java.util.Map;
 import java.util.Properties;
-import mano.util.logging.LogProvider;
 
 /**
  *
@@ -55,12 +54,7 @@ public abstract class Service implements Runnable {
     }
     
     public void process(Intent intent) throws Exception{
-        if(intent.getAction() == "process_request"){
-            intent.get("request");
-            
-        }else{
-            intent.get("request");
-        }
+        
     }
 
     public abstract String getServiceName();

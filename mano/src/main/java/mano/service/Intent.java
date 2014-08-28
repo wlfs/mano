@@ -157,6 +157,11 @@ public final class Intent implements Callable<Intent> {
      */
     @Override
     public final Intent call() throws Exception {
+        
+        
+        //URI uri=new URI("uri","service","action","null");
+        //uri://service/action
+        
         try {
             Service service = ServiceManager.getInstance().getService(this.getServiceName());
             if (service == null) {

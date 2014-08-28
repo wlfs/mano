@@ -5,15 +5,14 @@
  * See more http://mano.diosay.com/
  * 
  */
+
 package mano.service;
 
 /**
  *
  * @author jun <jun@diosay.com>
  */
-public interface IntentCallable {
-
-    void onCompleted(Intent intent);
-
-    void onFailed(Intent intent, Throwable ex);
+public abstract class IntentService extends Service {
+    @Override
+    public abstract void process(Intent intent) throws Exception;
 }

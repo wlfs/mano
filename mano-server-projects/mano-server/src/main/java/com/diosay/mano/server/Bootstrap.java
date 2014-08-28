@@ -12,6 +12,7 @@ import java.io.FileNotFoundException;
 import java.util.NoSuchElementException;
 import mano.ContextClassLoader;
 import mano.Mano;
+import mano.service.Intent;
 import mano.service.Service;
 import mano.service.ServiceManager;
 import mano.service.ServiceProvider;
@@ -44,7 +45,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
     String bootstrapPath;
 
     public Bootstrap() {
-        super(new Logger());
+        super(Logger.getLog());
         ServiceManager.getInstance().setLoader(this);
         ServiceManager.getInstance().regisiter(new LogService());
     }
@@ -174,7 +175,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
         //重置日志记录器
         node = helper.selectNode(root, "logger");
         if (node != null) {
-            LogProvider provider = null;
+
             attrs = node.getAttributes();
             try {
                 s = attrs.getNamedItem("name").getNodeValue().trim();
@@ -189,7 +190,9 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
                     for (int i = 0; i < nodes.getLength(); i++) {
                         try {
                             s = nodes.item(i).getAttributes().getNamedItem("class").getNodeValue();
-                            this.newInstance(s);
+                            Intent bag = Intent.create("mano.service.logging", "addhandler");
+                            bag.set("handler", this.newInstance(s));
+                            bag.submit();
                         } catch (Throwable ex) {
                             this.error(null, ex);
                         }
