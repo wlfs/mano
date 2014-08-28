@@ -21,3 +21,7 @@ hs_err_pid*
 /mano-server/target/
 /maven-manoserver-plugin/target/
 /test-webapp/target/
+/test-webapp-projects/test-webapp/target/
+/mano-server-projects/otpl4j/target/
+/test-webapp-projects/test-webapp-dao/target/
+/test-webapp-projects/test-webapp-model/target/
