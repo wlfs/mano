@@ -199,7 +199,7 @@ public class UrlRouteModule implements HttpModule {
                     return;
                 }
                 try {
-                    clazz.getMethod("setService", RequestService.class);
+                    clazz.getMethod("setService", ActionContext.class);
                 } catch (Throwable ex) {
                     return;
                 }
@@ -324,6 +324,32 @@ public class UrlRouteModule implements HttpModule {
         String setServiceMethod;
         int httpMethod;
         Map<Integer, String> paramsMapping = new HashMap<>();
+        Class<?>[] filters;
+
+        public Class<?>[] getActionFilters() {
+            if (filters == null) {
+                ArrayList<Class<?>> tmp = new ArrayList<>();
+                FilterGroup group = call.getAnnotation(FilterGroup.class);
+                if (group != null && group.value() != null && group.value().length > 0) {
+                    for (Filter f : group.value()) {
+                        if (!tmp.contains(f.value())) {
+                            tmp.add(f.value());
+                        }
+                    }
+                } else {
+                    Filter[] tmps = call.getAnnotationsByType(Filter.class);
+                    if (tmps != null) {
+                        for (Filter f : tmps) {
+                            if (!tmp.contains(f.value())) {
+                                tmp.add(f.value());
+                            }
+                        }
+                    }
+                }
+                filters = tmp.toArray(new Class<?>[0]);
+            }
+            return filters;
+        }
     }
 
     Set<Route> RouteTable = new LinkedHashSet<>();
@@ -355,6 +381,8 @@ public class UrlRouteModule implements HttpModule {
         }
     }
 
+    HashMap<Class<?>, ActionFilter> actionFilters = new HashMap<>();
+
     @Override
     public boolean handle(HttpContext context) {
         return this.handle(context, context.getRequest().url().getPath());
@@ -365,7 +393,7 @@ public class UrlRouteModule implements HttpModule {
         Pattern test = null;
         Matcher matcher;
 
-        RequestService rs = null;
+        ActionContext rs = null;
         for (Route route : RouteTable) {//TODO: 测试未考虑效率
             try {
                 test = Pattern.compile(route.patten, Pattern.CASE_INSENSITIVE);
@@ -390,15 +418,43 @@ public class UrlRouteModule implements HttpModule {
                 }
 
                 try {
-                    rs = new RequestService(context);
+                    rs = new ActionContext(context);
                     rs.setController(route.controller);
                     rs.setAction(route.action);
-                    Object obj = context.getApplication().getLoader().newInstance(route.clazz);
-                    Method m = Controller.class.getDeclaredMethod("setService", RequestService.class);
 
+                    //初始化过滤程序
+                    ActionFilter filter;
+                    for (Class<?> clazz : route.getActionFilters()) {
+                        if (actionFilters.containsKey(clazz)) {
+                            filter = actionFilters.get(clazz);
+                        } else {
+                            filter = (ActionFilter) context.getApplication().getLoader().newInstance(clazz);
+                            actionFilters.put(clazz, filter);
+                        }
+                        if (!filter.onActionExecuting(rs)) {
+                            return true;
+                        }
+                    }
+
+                    Object obj = context.getApplication().getLoader().newInstance(route.clazz);
+                    Method m = Controller.class.getDeclaredMethod("setService", ActionContext.class);
                     m.setAccessible(true);
                     m.invoke(obj, rs);//
+
                     route.call.invoke(obj, params);
+
+                    for (Class<?> clazz : route.getActionFilters()) {
+                        if (actionFilters.containsKey(clazz)) {
+                            filter = actionFilters.get(clazz);
+                        } else {
+                            filter = (ActionFilter) context.getApplication().getLoader().newInstance(clazz);
+                            actionFilters.put(clazz, filter);
+                        }
+                        if (!filter.onActionExecuted(rs)) {
+                            return true;
+                        }
+                    }
+
                     break;
                 } catch (InvocationTargetException ex) {
                     if (ex.getTargetException() != null) {

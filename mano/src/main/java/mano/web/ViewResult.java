@@ -25,7 +25,7 @@ public class ViewResult implements ActionResult {
     }
     
     @Override
-    public void execute(RequestService service) {
+    public void execute(ActionContext service) {
         if (engine == null) {
             service.getContext().getResponse().write("this view engine not found.");
             return;//throws error

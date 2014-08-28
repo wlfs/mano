@@ -23,7 +23,7 @@ import mano.otpl.emit.OpCode;
 import mano.util.LinkedMap;
 import mano.util.Utility;
 import mano.util.logging.LoggerOLD;
-import mano.web.RequestService;
+import mano.web.ActionContext;
 import mano.web.ViewEngine;
 
 /**
@@ -42,12 +42,12 @@ public class OtplViewEngine extends ViewEngine {
     }
     
     @Override
-    public void render(RequestService service, String tmpName) {
+    public void render(ActionContext service, String tmpName) {
         return;
     }
     
     @Override
-    public void render(RequestService service) {
+    public void render(ActionContext service) {
         String source = Utility.combinePath(this.getViewdir(), service.getPath()).toString();
         String target = Integer.toHexString(this.getViewdir().hashCode()) + "$" + Integer.toHexString(source.hashCode()) + ".otc";
         service.getContext().getApplication().getLogger().debug(source);

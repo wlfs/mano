@@ -85,7 +85,7 @@ public abstract class ViewEngine {
      * @param tempFilename
      * @return
      */
-    public abstract void render(RequestService service, String tmpName);
+    public abstract void render(ActionContext service, String tmpName);
     
     /**
      *
@@ -93,6 +93,6 @@ public abstract class ViewEngine {
      * @param tempFilename
      * @return
      */
-    public abstract void render(RequestService service);
+    public abstract void render(ActionContext service);
 
 }

@@ -18,7 +18,7 @@ import mano.util.NameValueCollection;
  *
  * @author jun <jun@diosay.com>
  */
-public class RequestService {
+public class ActionContext {
 
     private final Map<String, Object> viewbag;
     private final HttpContext context;
@@ -27,7 +27,7 @@ public class RequestService {
     private String controller;
     private String action;
 
-    public RequestService(HttpContext c) {
+    public ActionContext(HttpContext c) {
         if (c == null) {
             throw new IllegalArgumentException();
         }

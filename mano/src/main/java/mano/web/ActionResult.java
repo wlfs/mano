@@ -13,5 +13,5 @@ package mano.web;
  * @author jun <jun@diosay.com>
  */
 public interface ActionResult {
-    void execute(RequestService service);
+    void execute(ActionContext service);
 }

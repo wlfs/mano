@@ -2,7 +2,8 @@
 <configuration>
     <server>
         <settings>
-            <property name="server.dir">E:\repositories\java\mano\mano-server-projects\mano-server\target\build</property>
+            <!--E:\repositories\java\mano\mano-server-projects\mano-server\target\build-->
+            <property name="server.dir">{user.dir}/..</property>
             <property name="logging.path">{server.dir}/logs</property>
         </settings>
         <!--<dependency>

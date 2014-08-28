@@ -14,8 +14,7 @@ import mano.http.HttpRequest;
 import mano.http.HttpResponse;
 import mano.util.json.JsonConvert;
 import mano.util.json.JsonConverter;
-import mano.util.logging.CansoleLogProvider;
-import mano.util.logging.LoggerOLD;
+import mano.util.logging.Logger;
 
 /**
  *
@@ -27,15 +26,15 @@ public abstract class Controller {
     private HttpResponse response;
     private HttpRequest request;
     private HttpContext context;
-    private RequestService service;
+    private ActionContext service;
     private JsonConverter jsonConverter;
 
-    private final void setService(RequestService rs) {
+    private final void setService(ActionContext rs) {
         service = rs;
         context = rs.getContext();
     }
 
-    private RequestService getService() {
+    private ActionContext getService() {
         if (this.service == null) {
             throw new mano.InvalidOperationException("未初始化服务。");
         }
@@ -70,10 +69,10 @@ public abstract class Controller {
         try {
             return getContext().getSession().get(name);
         } catch (Throwable ex) {
-            mano.util.logging.LoggerOLD.getDefault().debug(null, ex);
+            getLogger().debug(ex);
         }
         return null;
-        
+
     }
 
     public void cookie(String name, Object value) {
@@ -139,8 +138,8 @@ public abstract class Controller {
         return getContext().getApplication();
     }
 
-    public LoggerOLD getLogger() {
-        return new LoggerOLD(new CansoleLogProvider());
+    public Logger getLogger() {
+        return this.getApplication().getLogger();
     }
 
     public ContextClassLoader getLoader() {

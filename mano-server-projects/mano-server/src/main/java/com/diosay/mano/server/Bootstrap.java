@@ -33,21 +33,22 @@ import org.w3c.dom.NodeList;
  * @author jun
  */
 public class Bootstrap extends ContextClassLoader implements ServiceProvider {
+
     @java.lang.Deprecated
     Logger logger;
     @java.lang.Deprecated
     ContextClassLoader loader;
-    
+
     NameValueCollection<Service> services;
     @java.lang.Deprecated
     String bootstrapPath;
-    
+
     public Bootstrap() {
         super(new Logger());
         ServiceManager.getInstance().setLoader(this);
         ServiceManager.getInstance().regisiter(new LogService());
     }
-    
+
     @Override
     public <T> T getService(Class<T> serviceType) {
         if (serviceType == null) {
@@ -73,7 +74,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
             ex.printStackTrace(System.out);
         }
     }
-    
+
     @java.lang.Deprecated
     private void init() throws FileNotFoundException {
         bootstrapPath = Utility.combinePath(System.getProperty("user.dir")).getParent().toString();
@@ -90,20 +91,20 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
      */
     private void configure(String configPath, String serverDir) throws Exception {
         Mano.setProperty("user.dir", System.getProperty("user.dir"));
-        
+
         File cfile;
         if (configPath == null) {
             cfile = Utility.combinePath(Utility.combinePath(Mano.getProperty("user.dir")).getParent().toString(), "conf/server.xml").toFile();
         } else {
             cfile = new File(configPath);
         }
-        
+
         if (!cfile.exists() || !cfile.isFile()) {
             throw new FileNotFoundException("Configuration file not found.");
         }
-        
+
         XmlHelper helper = XmlHelper.load(cfile.toString());
-        
+
         NamedNodeMap attrs;
         NodeList nodes;
         Node node, root;
@@ -137,7 +138,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
 
         //加载依赖
         register(Utility.combinePath(Mano.getProperty("server.dir"), "lib").toString());
-        
+
         nodes = helper.selectNodes(root, "dependency/path");
         String[] arr;
         if (nodes != null) {
@@ -182,7 +183,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
                 } else {
                     this.setLogger(Logger.getLog());
                 }
-                
+
                 nodes = helper.selectNodes(node, "handler");
                 if (nodes != null) {
                     for (int i = 0; i < nodes.getLength(); i++) {
@@ -194,7 +195,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
                         }
                     }
                 }
-                
+
             } catch (Exception ignored) {
             }
         }
@@ -206,7 +207,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
         if (nodes != null) {
             for (int i = 0; i < nodes.getLength(); i++) {
                 attrs = nodes.item(i).getAttributes();
-                
+
                 String name = attrs.getNamedItem("name").getNodeValue();
                 String type = attrs.getNamedItem("class").getNodeValue();
                 try {
@@ -230,7 +231,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
             }
         }
     }
-    
+
     private void loop() {
         while (true) {
             try {
@@ -241,14 +242,14 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
             }
         }
     }
-    
+
     public void start(String configFile, String serverDir) {
-        
+
         this.getLogger().info("Starting server.");
         try {
-            
+
             configure(configFile, serverDir);
-            
+
             if (services.isEmpty()) {
                 this.getLogger().fatal("No service running.");
                 System.exit(0);
@@ -257,9 +258,9 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
                     ThreadPool.execute(service);
                 });
                 this.getLogger().info("server is started.");
-                
+
             }
-            
+
         } catch (Exception ex) {
             this.getLogger().fatal(ex);
             try {
@@ -269,7 +270,7 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
             System.exit(0);
         }
     }
-    
+
     public void stop() {
         this.getLogger().info("server has stopped.");
         try {
@@ -278,14 +279,14 @@ public class Bootstrap extends ContextClassLoader implements ServiceProvider {
         }
         System.exit(0);
     }
-    
+
     public static void main(String[] args) {
         Bootstrap server = new Bootstrap();
-        //Mano.setProperty("manoserver.testing.test_webapp.config_file", "E:\\repositories\\java\\mano\\test-webapp-projects\\test-webapp\\src\\main\\webapp");
-        //Mano.setProperty("manoserver.testing.test_webapp.ext_dependency", "E:\\repositories\\java\\mano\\test-webapp-projects\\test-webapp\\target\\build\\lib");
-        //server.start("E:\\repositories\\java\\mano\\mano-server-projects\\mano-server\\src\\resources\\conf\\server.xml", "E:\\repositories\\java\\mano\\mano-server-projects\\mano-server\\target\\build");
+//        Mano.setProperty("manoserver.testing.test_webapp.config_file", "E:\\repositories\\java\\mano\\test-webapp-projects\\test-webapp\\src\\main\\webapp");
+//        Mano.setProperty("manoserver.testing.test_webapp.ext_dependency", "E:\\repositories\\java\\mano\\test-webapp-projects\\test-webapp\\target\\build\\lib");
+//        server.start("E:\\repositories\\java\\mano\\mano-server-projects\\mano-server\\src\\resources\\conf\\server.xml", "E:\\repositories\\java\\mano\\mano-server-projects\\mano-server\\target\\build");
         server.start(null, null);
         server.loop();
     }
-    
+
 }
