@@ -149,7 +149,7 @@ public class ByteArrayBuffer implements Buffer, Resettable {
      * @return
      */
     public synchronized void compact() {
-        inner.flip();
+        inner.compact();
         /*int size = this.len - this.pos;
         
          if (size > 0) {
@@ -249,7 +249,7 @@ public class ByteArrayBuffer implements Buffer, Resettable {
             {
                 for (int j = 0; j < needleCount - 1; j++) //连续匹配
                 {
-                    if (haystack[i + j] != needle[j + needleIndex]) //如果中途不匹配
+                    if (i + j >= count + index || haystack[i + j] != needle[j + needleIndex]) //如果中途不匹配
                     {
                         return bytesIndexOf(haystack, i + 1, count - (i - index) - 1, needle, needleIndex, needleCount);//从不匹配位置回溯
                     }

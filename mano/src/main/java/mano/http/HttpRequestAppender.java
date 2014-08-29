@@ -13,6 +13,8 @@ package mano.http;
  */
 public interface HttpRequestAppender {
     long getContentLength();
+    String getBoundary();
     void appendPostFile(HttpPostFile file);
     void appendFormItem(String name, String value);
+    void notifyDone();
 }

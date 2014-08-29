@@ -7,6 +7,11 @@
  */
 package mano.util;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
@@ -264,5 +269,77 @@ public class Utility {
                 return obj;
         }
     }
+    
+    
+    public static void copyFile(String src, String target) throws IOException {
+            copyFile(new File(src), new File(target));
+        }
+
+        public static void copyFile(File src, File target) throws IOException {
+            if (!src.exists() || !src.isFile()) {
+                throw new FileNotFoundException("源文件不存或不是文件：" + src);
+            }
+
+            if (target.exists() && target.isFile()) {
+                target.delete();
+            }
+
+            File parent = target.getParentFile();
+            if (!parent.exists() || (parent.exists() && !parent.isDirectory())) {
+                parent.mkdirs();
+            }
+
+            target.createNewFile();
+
+            try (FileInputStream input = new FileInputStream(src)) {
+                try (FileOutputStream out = new FileOutputStream(target)) {
+                    out.getChannel().transferFrom(input.getChannel(), 0, input.getChannel().size());
+                }
+            }
+        }
+
+        public static void copyFolder(String src, String target) throws IOException {
+            copyFolder(new File(src), new File(target));
+        }
+
+        public static void copyFolder(File src, File target) throws IOException {
+            if (!src.exists() || !src.isDirectory()) {
+                throw new FileNotFoundException("源目录不存在或不是目录：" + src);
+            }
+            if (!target.exists() || !target.isDirectory()) {
+                if (!target.mkdirs()) {
+                    throw new IOException("创建目标目录失败：" + target);
+                }
+            }
+            for (File child : src.listFiles()) {
+                if (child.isDirectory()) {
+                    copyFolder(src.toString() + "/" + child.getName(), target.toString() + "/" + child.getName());
+                } else if (child.isFile()) {
+                    copyFile(src.toString() + "/" + child.getName(), target.toString() + "/" + child.getName());
+                }
+            }
+        }
+
+        public static void deleteFile(String filename) {
+            new File(filename).delete();
+        }
+
+        public static void deleteFolder(String filename) {
+            deleteFolder(new File(filename));
+        }
+
+        public static void deleteFolder(File file) {
+            if (file.exists() && file.isDirectory()) {
+                for (File child : file.listFiles()) {
+                    if (child.isFile()) {
+                        child.delete();
+                    } else {
+                        deleteFolder(child);
+                    }
+                }
+                file.delete();
+            }
+
+        }
 
 }

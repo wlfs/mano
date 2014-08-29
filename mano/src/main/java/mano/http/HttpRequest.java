@@ -7,9 +7,11 @@
  */
 package mano.http;
 
-import mano.InvalidOperationException;
 import java.net.URL;
 import java.util.Map;
+import mano.InvalidOperationException;
+import mano.net.Channel;
+import mano.net.ChannelHandler;
 import mano.util.Utility;
 
 /**
@@ -149,7 +151,7 @@ public abstract class HttpRequest {
      * @param handler 数据处理程序。
      * @throws ark.InvalidOperationException
      */
-    public abstract void loadEntityBody(HttpEntityBodyHandler handler) throws InvalidOperationException, NullPointerException;
+    public abstract void loadEntityBody(ChannelHandler<? extends Channel, ? extends Object> handler) throws Exception;
 
     /**
      * 使用默认处理程序载入并处理 HTTP 请求实体正文。

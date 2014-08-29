@@ -81,6 +81,12 @@ public abstract class AioSocketChannel implements Channel {
         read0(handler, true, 0);
     }
 
+    public synchronized void callHandler(ChannelHandler handler, Object attachment) {
+        handler.attach(attachment);
+        handler.init(this, this, buffer.length(), buffer, null);
+        handler.run();
+    }
+
     /**
      * 将任务提交到异步队列
      *
@@ -205,7 +211,7 @@ public abstract class AioSocketChannel implements Channel {
                 failed(new IOException("this remote connection was closed."), handler);
             } else {
                 channel.buffer.flush();
-                handler.init(channel.receiveHandler, channel, bytesTransferred, channel.buffer, null, null);
+                handler.init(channel.receiveHandler, channel, bytesTransferred, channel.buffer, null);
                 ThreadPool.execute(handler);
             }
         }

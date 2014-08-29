@@ -11,25 +11,24 @@ package mano.net;
  *
  * @author jun <jun@diosay.com>
  */
-public abstract class ChannelHandler<TC extends Channel,TT extends Object> implements Runnable {
+public abstract class ChannelHandler<C extends Channel,A extends Object> implements Runnable {
 
-    private TC chan;
+    private C chan;
     private int reads;
     private ByteArrayBuffer buf;
-    private TT attachment;
+    private A attachment;
     private Throwable error;
     private Object sender;
 
-    final void init(Object sender, TC channel, int bytesTransferred, ByteArrayBuffer buffer, TT token, Throwable exc) {
+    final void init(Object sender, C channel, int bytesTransferred, ByteArrayBuffer buffer, Throwable exc) {
         this.sender = sender;
         this.error = exc;
         this.chan = channel;
         this.reads = bytesTransferred;
         this.buf = buffer;
-        this.attachment = token;
     }
     
-    final void attach(TT attachment) {
+    final void attach(A attachment) {
         this.attachment = attachment;
     }
 
@@ -47,22 +46,21 @@ public abstract class ChannelHandler<TC extends Channel,TT extends Object> imple
             try {
                 this.onFailed(chan, error);
             } catch (Exception ex) {
-                //log()
+                ex.printStackTrace(System.out);
             }
         }
 
-        synchronized (sender) {
-            sender.notify();
-        }
-        sender=null;
-        
-        this.chan = null;
-        this.reads = -1;
-        this.buf = null;
-        this.attachment = null;
+        //synchronized (sender) {
+        //    sender.notify();
+        //}
+        //this.sender=null;
+        //this.chan = null;
+        //this.reads = -1;
+        //this.buf = null;
+        //this.attachment = null;
     }
 
-    protected abstract void onRead(TC channel, int bytesRead, ByteArrayBuffer buffer, TT token);
+    protected abstract void onRead(C channel, int bytesRead, ByteArrayBuffer buffer, A attachment) throws Exception;
 
-    protected abstract void onFailed(TC channel, Throwable exc);
+    protected abstract void onFailed(C channel, Throwable exc);
 }

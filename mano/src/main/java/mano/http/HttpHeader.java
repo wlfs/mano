@@ -22,8 +22,8 @@ public class HttpHeader {
     private String _text;
     private String _value;
     private Map<String, String> _attrs;
-    static final Pattern pattern = Pattern.compile(";\\s*(\\w+)\\s*=\\s*\"*([\\w-]+)\"*(\\s*|;*)");
-
+    //static final Pattern pattern = Pattern.compile(";\\s*(\\w+)\\s*=\\s*\"*([\\w-]+)\"*(\\s*|;*)");
+    static final Pattern pattern = Pattern.compile("([^\\s=]+)=[\"\\s]?([^\"]+)");
     public HttpHeader(String name){
         _name=name;
     }
@@ -60,7 +60,7 @@ public class HttpHeader {
                 if (_attrs == null) {
                     _attrs = new NameValueCollection<>();
                 }
-                _attrs.put((m.group(1) + "").trim(), (m.group(2) + "").trim());
+                _attrs.put(m.group(1), m.group(2));
                 //System.out.println("item:"+m.group(1)+" = "+m.group(2));
             }
         } else {
