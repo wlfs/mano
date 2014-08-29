@@ -33,7 +33,7 @@ import mano.http.HttpConnection.ReceivedCompletionHandler;
 import mano.http.HttpConnection.ResolveRequestHeadersHandler;
 import mano.http.HttpConnection.ResolveRequestLineHandler;
 import mano.http.HttpConnection.SentCompletionHandler;
-import mano.http.HttpRequestImpl.LoadExactDataHandler;
+//import mano.http.HttpRequestImpl.LoadExactDataHandler;
 import mano.io.BufferPool;
 import mano.io.ByteBufferPool;
 import mano.net.Buffer;
@@ -84,7 +84,7 @@ public class HttpService extends Service implements ServiceProvider {
     Pool<ResolveRequestHeadersHandler> resolveRequestHeadersHandlerHandlerPool;
     Pool<HttpConnection> connectionPool;
     Pool<FlushHandler> flushHandlerPool;
-    Pool<LoadExactDataHandler> loadExactDataHandlerPool;
+    //Pool<LoadExactDataHandler> loadExactDataHandlerPool;
     Pool<mano.net.ByteArrayBuffer> bufferPool;
 
     public HttpService() {
@@ -107,9 +107,7 @@ public class HttpService extends Service implements ServiceProvider {
         flushHandlerPool = new CachedObjectPool<>(() -> {
             return new FlushHandler();
         }, 4, 128);
-        loadExactDataHandlerPool = new CachedObjectPool<>(() -> {
-            return new LoadExactDataHandler();
-        }, 4, 128);
+        
     }
 
     BufferPool workBufferPool() {

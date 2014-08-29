@@ -37,6 +37,7 @@ public class HttpChannel extends AioSocketChannel {
     
     @Override
     public void onFailed(Object sender, Throwable exc) {
+        service.getLogger().debug(exc);
         if (!sentError && isOpen()) {
             try {
                 sentError = true;
@@ -117,7 +118,7 @@ public class HttpChannel extends AioSocketChannel {
                 }
             }
             if (!done) {
-                channel.read(this, request);
+                channel.read(this, request);this.notify();
             } else {
 //                HttpResponseImpl rsp=new HttpResponseImpl(channel);
 //                rsp.write("hello");
