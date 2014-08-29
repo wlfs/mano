@@ -27,6 +27,8 @@ public interface Channel extends Resettable,Disposable {
      * @param attachment 
      */
     void read(ChannelHandler handler, Object attachment);
+    
+    void callHandler(ChannelHandler handler, Object attachment);
 
     /**
      * 将指定缓冲区放入写入队列。

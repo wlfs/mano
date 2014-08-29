@@ -81,6 +81,7 @@ public abstract class AioSocketChannel implements Channel {
         read0(handler, true, 0);
     }
 
+    @Override
     public synchronized void callHandler(ChannelHandler handler, Object attachment) {
         handler.attach(attachment);
         handler.init(this, this, buffer.length(), buffer, null);
