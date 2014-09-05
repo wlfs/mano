@@ -1,0 +1,37 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE hibernate-configuration PUBLIC
+	"-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+	"http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+<hibernate-configuration>
+    <session-factory>
+        <!--显示执行的SQL语句-->
+        <property name="show_sql">true</property>
+        <!--连接字符串-->
+        <property name="connection.url">jdbc:mysql://localhost:3306/test</property>
+        <!--连接数据库的用户名-->
+        <property name="connection.username">root</property>
+        <!--数据库用户密码-->
+        <property name="connection.password">rootroot</property>
+        <!--数据库驱动-->
+        <property name="connection.driver_class">com.mysql.jdbc.Driver</property>
+        <!--JDBC连接池（使用内置的连接池）-->
+        <property name="connection.pool_size">1</property>
+        <!--设置Hibernate自动管理上下文的策略-->
+        <property name="current_session_context_class">thread</property>
+        <!--选择使用的方言-->
+        <property name="dialect">org.hibernate.dialect.MySQLDialect</property>
+        <!--在启动时删除并重新创建数据库-->
+        <property name="hbm2ddl.auto">create</property>
+        <mapping resource="com/diosay/test/webapp/model/Product.hbm.xml"/>
+        <!--<mapping resource="events/Event.hbm.xml"/>
+    
+    <mapping resource="org/hibernate/test/legacy/Simple.hbm.xml"/>
+    <class-cache
+        class="org.hibernate.test.legacy.Simple"
+        region="Simple"
+        usage="read-write"/>-->
+        
+    </session-factory>
+    
+</hibernate-configuration>

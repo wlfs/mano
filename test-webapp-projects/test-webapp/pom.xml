@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.diosay</groupId>
+        <artifactId>test-webapp-projects</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>test-webapp</artifactId>
+    <!--需要改成 jar  -->
+    <packaging>jar</packaging>
+    <name>Test Webapp</name>
+    
+    <properties>
+        <!--WEB的编译路径${basedir}/src/main/webapp-->
+        <build.dir>C:\Users\jun\Desktop\server\test</build.dir>
+        <!--服务器安装目录-->
+        <server.dir>E:\repositories\java\mano\mano-server-projects\mano-server\target\build</server.dir>
+        <endorsed.dir>${project.build.directory}/endorsed</endorsed.dir>
+        <manoserver.proerties.file>${basedir}/webapp/WEB-INF/conf/manoserver.proerties</manoserver.proerties.file>
+    </properties>
+    
+    <dependencies>
+        <dependency>
+            <!--添加mano框架依赖，但此依赖只需要在编译时生效，在部署时不要包含在lib中。-->
+            <groupId>com.diosay</groupId>
+            <artifactId>mano</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>test-webapp-model</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <!--======== MANO WEB应用配置:开始 ========-->
+            <!--manoserver 插件，使用：
+            调试：manoserver:run
+            部署：manoserver:deploy-->   
+            <plugin>
+                <groupId>com.diosay</groupId>
+                <artifactId>maven-manoserver-plugin</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <configuration>
+                    <resourceDirectory>${basedir}/src/main/webapp</resourceDirectory>
+                    <libDirectory>${basedir}/target/build/lib</libDirectory>
+                    <buildDirectory>${build.dir}</buildDirectory>
+                    <serverDirectory>${server.dir}</serverDirectory>
+                </configuration>
+                <!--<executions>
+                    <execution>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>-->
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <!--复制依赖文件-->
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target/build/lib</outputDirectory>
+                            <overWriteIfNewer>true</overWriteIfNewer>
+                            <overWriteSnapshots>false</overWriteSnapshots>
+                            <overWriteReleases>false</overWriteReleases>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.6</version>
+                <executions>
+                    <!--复制当前文件-->
+                    <execution>
+                        <id>copy-resources-conf</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target/build/lib</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${basedir}/target</directory>
+                                    <includes>
+                                        <include>${project.artifactId}*.jar</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--======== MANO WEB应用配置:结束 ========-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <compilerArguments>
+                        <endorseddirs>${endorsed.dir}</endorseddirs>
+                    </compilerArguments>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
